@@ -1,6 +1,6 @@
-coverage==3.7.1
-mock<1.1.0
-pylint>=1.5.4
-pytest==2.8.7
-pytest-cov==2.2.1
-tox>=2.3.1
+coverage
+mock
+pylint
+pytest
+pytest-cov
+tox

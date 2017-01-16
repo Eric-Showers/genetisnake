@@ -27,6 +27,7 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=['tests']),
     package_dir={'genetisnake': 'genetisnake'},
     include_package_data=True,
+    setup_requires=['tox-setuptools'],
     install_requires=INSTALL_REQUIRES,
     tests_require=TESTS_REQUIRE,
     extras_require=dict(
