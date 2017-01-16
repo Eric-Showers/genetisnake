@@ -1,5 +1,5 @@
 import pytest
-from battlesnake.board import Board, CompassMoves, ManhattanMoves
+from genetisnake.board import Board, CompassMoves, ManhattanMoves
 
 def test_board():
     board = Board(3,5)

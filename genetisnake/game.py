@@ -2,7 +2,7 @@ import math
 import itertools
 from random import randint
 
-from battlesnake.board import Board
+from genetisnake.board import Board
 
 class SnakePlayer(object):
     def __init__(self, snake, name, cell_type):

@@ -18,14 +18,14 @@ INSTALL_REQUIRES = reqs("requirements.txt")
 TESTS_REQUIRE = reqs("test-requirements.txt")
 
 setuptools.setup(
-    name='battlesnake',
+    name='genetisnake',
     version='0.1.0',
-    url='https://github.com/noelbk/battlesnake-python',
+    url='https://github.com/noelbk/genetisnake-python',
     description='Battlesnake Python client',
     author='Noel Burton-Krahn <noel@burton-krahn.com>',
     author_email='noel@burton-krahn.com',
     packages=setuptools.find_packages(exclude=['tests']),
-    package_dir={'battlesnake': 'battlesnake'},
+    package_dir={'genetisnake': 'genetisnake'},
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,
     tests_require=TESTS_REQUIRE,

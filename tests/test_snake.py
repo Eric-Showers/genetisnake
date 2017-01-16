@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-from battlesnake.snake import Board, Cell, INF
+from genetisnake.snake import Board, Cell, INF
 
 def test_snake():
 

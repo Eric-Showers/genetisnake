@@ -1,5 +1,5 @@
 from itertools import repeat
-from battlesnake.game import Game
+from genetisnake.game import Game
 
 class IterSnake(object):
     def __init__(self, moves):
