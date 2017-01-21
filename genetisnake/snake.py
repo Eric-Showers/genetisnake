@@ -1,134 +1,46 @@
-from collections import namedtuple, deque
+from collections import deque
 import string
 import logging
+import random
+
+import genetic
+
+from .board import Board, Move, CellType
+from .game import Game
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
-Cell = namedtuple('Cell', ['index', 'value'])
-
-Move = namedtuple('Move', ['dx', 'dy', 'name'])
-MOVES = [
-    Move(-1,  0, 'left'),
-    Move( 0, -1, 'up'),
-    Move( 1,  0, 'right'),
-    Move( 0,  1, 'down'),
-    ]
 INF = float('inf')
 
-STARVATION_TURNS = 100
-CELL_TYPE_SELF = 'A'
+CELL_TYPE_SELF  = 'A'
 CELL_TYPE_ENEMY = set(string.ascii_uppercase) - set(CELL_TYPE_SELF)
 CELL_TYPE_SPACE = ' '
-CELL_TYPE_FOOD = '*'
+CELL_TYPE_FOOD  = '*'
+CELL_TYPE_GOLD  = '+'
+CELL_TYPE_WALL  = '#'
+CELL_TYPE_CLEAR = set([CELL_TYPE_SPACE, CELL_TYPE_FOOD, CELL_TYPE_GOLD])
 
-class CellType(object):
-    def __init__(self, char_set):
-        self.char_set = char_set
+class SnakeCellType(CellType):
+    def can_move(self, cell):
+        return cell in CELL_TYPE_CLEAR
 
-    def is_member(self, val):
-        return val in self.char_set
+CellTypeFood = SnakeCellType(CELL_TYPE_FOOD)
+CellTypeEnemy = SnakeCellType(CELL_TYPE_ENEMY)
+CellTypeSelf = SnakeCellType(CELL_TYPE_SELF)
 
-    def is_opaque(self, val):
-        return not self.is_member(val) and val not in (CELL_TYPE_SPACE, CELL_TYPE_FOOD, CELL_TYPE_SELF)
+SnakeMoves = (
+    Move("up",     0, -1),
+    Move("left",   1,  0),
+    Move("down",   0,  1),
+    Move("right", -1,  0),
+)
 
-CellTypeSelf  = CellType(CELL_TYPE_SELF)
-CellTypeEnemy = CellType(CELL_TYPE_ENEMY)
-CellTypeFood  = CellType(CELL_TYPE_FOOD)
-
-class Board(list):
-    """A board is a 2-d array of values"""
-
-    def __init__(self, xmax, ymax, val=None):
-        super(Board, self).__init__()
-
-        self.xmax = xmax
-        self.ymax = ymax
-        if not callable(val):
-            f = lambda x, y: val
-        else:
-            f = val
-
-        for y in range(ymax):
-            for x in range(xmax):
-                self.append(f(x, y))
-
-        self.ttl = 10
-
-    @classmethod
-    def load_strs(cls, *strs):
-        ymax = len(strs)
-        xmax = len(strs[0])
-        vals = iter("".join(strs))
-        return Board(xmax, ymax, lambda x, y: next(vals))
-
-
-    def index(self, x, y):
-        """convert (x,y) coordinates to an integer index in my array"""
-        return y * self.xmax + x
-
-    def get(self, x, y):
-        return self[self.index(x, y)]
-
-    def put(self, x, y, val):
-        self[self.index(x, y)] = val
-
-    def coords(self, index):
-        """return the x, y coordinates of index"""
-        return index % self.xmax, index / self.xmax
-
-    def __iter__(self):
-        """iterate over all my cell indexes and values"""
-        for index in range(self.xmax * self.ymax):
-            yield Cell(index, self[index])
-
-    def head(self):
-        for cell in self:
-            if CellTypeSelf.is_member(cell.value):
-                return cell
-
-    def neighbours(self, index):
-        """return all (index, move_name) adjacent to index"""
-        x, y = self.coords(index)
-        for move in MOVES:
-            x1 = x + move.dx
-            y1 = y + move.dy
-            if x1 >= 0 and x1 < self.xmax and y1 >= 0 and y1 < self.ymax:
-                yield Cell(self.index(x1, y1), move.name)
-
-    def board(self, value=None):
-        """make a new board with my dimensions"""
-        return Board(self.xmax, self.ymax, value)
-
-    def smell(self, cell_type):
-        """make a board where the values are the number of moves from
-        each cell to the nearest cell_type"""
-
-        # by default, everything is infinite moves away
-        smell = self.board(INF)
-
-        # start with all cells in cell_type
-        todo = deque()
-        for cell in self:
-            if cell_type.is_member(cell.value):
-                todo.append((cell, 0.0))
-
-        # keep adding neighbours at increasing distance
-        max_dist = 0
-        while todo:
-            cell, dist = todo.popleft()
-
-            # stop if this cell is already hit or is opaque
-            if smell[cell.index] != INF or cell_type.is_opaque(self[cell.index]):
-                continue
-
-            smell[cell.index] = dist
-            if dist > max_dist:
-                max_dist = dist
-            for cell in self.neighbours(cell.index):
-                todo.append((cell, dist+1))
-
-        return smell, max_dist
+class SnakeBoard(Board):
+    def __init__(self, width, height, val=None, moves=None):
+        if moves is None:
+            moves = SnakeMoves
+        super(SnakeBoard, self).__init__(width, height, val, moves)
 
     def smell_food(self):
         return self.smell(CellTypeFood)
@@ -136,140 +48,133 @@ class Board(list):
     def smell_enemy(self):
         return self.smell(CellTypeEnemy)
 
-    def smell_self(self):
-        return self.smell(CellTypeSelf)
+    def smell_space(self, pos):
+        """find the most moves I can make from pos without bumping into an enemy"""
 
-    def smell_space(self):
-        """see which move next to my head leads to the most open space"""
-        todo = deque()
-        space_map = self.board()
+        # by default, everything is infinite moves away
+        smell = self.copy()
 
-        head = self.head()
-        todo.append((Cell(head.index, None), 0))
+        # start at pos
+        self_todo = deque()
+        self_todo.append((pos, 0))
 
-        while todo:
-            prev_cell, dist = todo.popleft()
-            for next_cell in self.neighbours(prev_cell.index):
-                if space_map[next_cell.index] is not None or CellTypeSelf.is_opaque(self[next_cell.index]):
+        # start all enemies
+        enemy_type = CellTypeEnemy
+        enemy_todo = []
+        for pos, val in enumerate(self):
+            if enemy_type.matches(val):
+                enemy_todo.append((pos, self[pos], 0))
+
+        # fill from my starting pos and my enemies
+        max_dist = -INF
+        enemy_dist = {}
+        while self_todo:
+            # expand enemies
+            next_enemy_todo = []
+            for pos, enemy, dist in enemy_todo:
+                if smell[pos] is not None:
                     continue
+                smell[pos] = (enemy, dist)
+                enemy_dist[enemy] = dist
+                for next_pos, _next_move in self.neighbours(pos):
+                    if smell[next_pos] is None and enemy_type.can_move(self[next_pos]):
+                        next_enemy_todo.append((next_pos, enemy, dist+1))
+            enemy_todo = next_enemy_todo
 
-                move_name = prev_cell.value
-                if not move_name:
-                    move_name = next_cell.value
-                space_map[next_cell.index] = move_name
-
-                todo.append((Cell(next_cell.index, move_name), dist+1))
-
-        # count spaces from space_map
-        space_by_move = {}
-        space_max = self.xmax * self.ymax
-        for cell in space_map:
-            # 1 point per cell, minus the likelihood that I'll meet an enemy there
-            if not cell.value:
+            # try myself at the next pos
+            pos, dist = self_todo.popleft()
+            if smell[pos] is not None:
                 continue
-            if cell.value not in space_by_move:
-                space_by_move[cell.value] = 0.0
-            space_by_move[cell.value] += 1.0 # - 1.0 / (max(enemy[cell.index], 1.0) * max(dist[cell.index], 1.0))
-        if space_by_move:
-            space_max = max(space_by_move.values())
+            smell[pos] = (CELL_TYPE_SELF, dist)
+            max_dist = max(max_dist, dist)
+                
+            for next_pos, _next_move in self.neighbours(pos):
+                if smell[next_pos] is None and CellTypeSelf.can_move(self[next_pos]):
+                    self_todo.append((next_pos, dist+1))
 
-        return space_by_move, space_max, space_map
+        return smell, max_dist, min(enemy_dist.values()), max(enemy_dist.values())
+        
 
-    def move(self):
-        food, food_max = self.smell_food()
-        enemy, enemy_max = self.smell_enemy()
-        space_by_move, space_max, _space_map = self.smell_space()
+class GenetiSnake(object):
+    ARITY = 6 # number of arguments my decision function takes
+    
+    def __init__(self, move_func):
+        self.move_func = move_func
+        self.games = 0
+        self.turns = 0
 
-        head = self.head()
+    def move(self, game, self_index):
+        board = SnakeBoard(game.width, game.height)
+        board.put_list(game.food, CELL_TYPE_FOOD)
+        board.put_list(game.walls, CELL_TYPE_WALL)
+        enemy_ids = iter(CELL_TYPE_ENEMY)
+        for i, snake in enumerate(game.snakes):
+            if i == self_index:
+                body_id = CELL_TYPE_SELF
+            else:
+                body_id = next(enemy_ids)
+            board.put_list(snake.body, body_id.lower())
+            board[snake.body[0]] = body_id
+        
+        self_head = game.snakes[self_index].body[0]
+        self_health = game.snakes[self_index].health
 
-        # make sure the closest food isn't too far away to eat
-        closest_food = 1 + min([INF] + [food[move.index] for move in self.neighbours(head.index)])
+        food_smell,   _food_max = board.smell_food()
+        enemy_smell, _enemy_max = board.smell_enemy()
 
-        # now find the best move
-        best_move = MOVES[0].name
-        best_score = -INF
-        for move in self.neighbours(head.index):
-            if CellTypeSelf.is_opaque(self[move.index]):
+        max_move = board.moves[0]
+        max_score = None
+        for move_pos, move in board.neighbours(self_head):
+            if not CellTypeSelf.can_move(board[move_pos]):
                 continue
+            _space, space_self, space_enemy_min, space_enemy_max = board.smell_space(move_pos)
+            # the number of arguments here is self.ARITY
+            score = self.move_func(
+                self_health,
+                food_smell[move_pos],
+                enemy_smell[move_pos],
+                space_self,
+                space_enemy_min,
+                space_enemy_max,
+                )
+            if max_score is None or score > max_score:
+                max_score = score
+                max_move = move
+        return max_move.name
+        
+def training():
+    WIDTH=20
+    HEIGHT=20
+    N_ROUNDS = 5
+    N_PLAYERS = 8
 
-            score = 0.0
+    solver = genetic.GeneticSolver()
+    funcs = solver.population(GenetiSnake.ARITY, N_ROUNDS * N_PLAYERS)
+    solver.start()
+    while not solver.converged:
+        # play N_ROUNDS games of N_PLAYERS randomly shuffled
+        snakes = [GenetiSnake(func) for func in funcs]
+        random.shuffle(snakes)
+        for start in range(0, len(snakes), N_PLAYERS):
+            # set up a game with N_PLAYERS
+            game = Game(WIDTH, HEIGHT)
+            for snake in snakes[start : start + N_PLAYERS]:
+                game.add(snake)
 
-            score_enemy = 0
-            if enemy[move.index] <= 1:
-                # bad!  Do not go where an enemy could move next
-                score_enemy = -10
-            elif enemy[move.index] != INF:
-                score_enemy = float(enemy[move.index]) / enemy_max
-            score += score_enemy
+            # play it
+            for _board in game.run():
+                pass
 
-            score_food = 0
-            if food[move.index] != INF:
-                score_food = (1.0 - food[move.index] / food_max)
-                if self.ttl < max(2 * closest_food, STARVATION_TURNS / 25):
-                    # I'm hungry, get food!
-                    score_food = score_food * 8
-            score += score_food
+            # sum up the turns each player lasted
+            for player in game.killed:
+                snake = player.snake
+                snake.games += 1
+                snake.turns += player.turns
 
-            # prefer open space
-            score_space = float(space_by_move.get(move.value, 0.0)) / space_max
-            score += score_space
+        # Want to maximize turns, so minimize -turns
+        for snake in snakes:
+            snake.func.err = -snake.turns
+            assert snake.games == N_ROUNDS
 
-            # debug
-            LOG.debug("move=%s score=%s ttl=%s closest_food=%s score_enemy=%s score_food=%s score_space=%s",
-                      move.value, score, self.ttl, closest_food, score_enemy, score_food, score_space)
-
-            if score > best_score:
-                best_move = move.value
-                best_score = score
-
-        # debug
-        LOG.debug("best_move=%s", best_move)
-
-        return best_move
-
-    def dump(self):
-        s = ""
-        for cell in self:
-            x, _y = self.coords(cell.index)
-            if x == 0:
-                s += "|"
-            #else:
-            #    s += " "
-            s += str(cell.value)
-            if x == self.xmax-1:
-                s += "|\n"
-        return s
-
-def battlesnake_move(data, snake_name):
-    ymax = len(data['board'])
-    xmax = len(data['board'][0])
-
-    board = Board(xmax, ymax, CELL_TYPE_SPACE)
-
-    debug_data = data.copy()
-    del debug_data['board']
-    LOG.debug("battlesnake_board snake_name=%s data=%s", snake_name, debug_data)
-
-    for x, y in data['food']:
-        board.put(x, y, CELL_TYPE_FOOD)
-
-    # make a board with all snakes as Aaaa Bbbbb Cccc.... where Aaaaa is me
-    my_id = CELL_TYPE_SELF
-    enemy_ids = iter(CELL_TYPE_ENEMY)
-    for snake in data['snakes']:
-        if snake['name'] == snake_name:
-            snake_id = my_id
-            try:
-                board.ttl = STARVATION_TURNS - (data['turn'] - snake['last_eaten'])
-            except KeyError:
-                board.ttl = 0
-        else:
-            snake_id = next(enemy_ids)
-
-        for x, y in snake['coords']:
-            if board.get(x, y) == CELL_TYPE_SPACE:
-                board.put(x, y, snake_id)
-            snake_id = snake_id.lower()
-
-    LOG.debug("battlesnake_board board=\n%s\n", board.dump())
-    return board.move()
+        funcs = solver.generation(funcs)
+                

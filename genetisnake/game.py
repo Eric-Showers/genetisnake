@@ -43,11 +43,11 @@ class SnakeBoard(Board):
         return self.index(x, y)
         
 class Game(object):
-    MAX_HEALTH = 20
-    INITIAL_LENGTH = 3
+    MAX_HEALTH      = 20
+    INITIAL_LENGTH  = 3
     CELL_TYPE_EMPTY = ' '
-    CELL_TYPE_FOOD = '+'
-    CELL_TYPE_WALL = '#'
+    CELL_TYPE_FOOD  = '+'
+    CELL_TYPE_WALL  = '#'
 
     def __init__(self, width, height):
         self.width = width

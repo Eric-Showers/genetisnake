@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import namedtuple, deque
 
 Move = namedtuple('Move', ['name', 'dx', 'dy'], verbose=True)
 
@@ -20,14 +20,29 @@ CompassMoves = (
     Move("NW", -1, -1),
 )
 
+class CellType(object):
+    def __init__(self, values):
+        self.values = values
+        
+    def matches(self, cell):
+        return cell in self.values
+
+    def can_move(self, cell):
+        return cell in (None, ' ')
+
 class Board(list):
     """A 2-d array of values, stored in a list"""
 
-    def __init__(self, width, height, val=None):
+
+    def __init__(self, width, height, val=None, moves=None):
         super(Board, self).__init__()
 
         self.width = width
         self.height = height
+        if moves is None:
+            moves = ManhattanMoves
+        self.moves = moves
+
         if not callable(val):
             f = lambda x, y: val
         else:
@@ -42,7 +57,11 @@ class Board(list):
         """load from an array of arrays"""
         width = len(strs[0]) 
         height = len(strs)
-        return Board(width, height, lambda x, y: strs[y][x])
+        return cls(width, height, val=lambda x, y: strs[y][x])
+
+    def put_list(self, pos_list, cell_type):
+        for pos in pos_list:
+            self[pos] = cell_type
 
     def index(self, x, y):
         """convert (x,y) coordinates to an integer index in my array"""
@@ -55,15 +74,49 @@ class Board(list):
         """return the x, y coordinates of index"""
         return index % self.width, index / self.width
 
-    def neighbours(self, pos, moves):
+    def neighbours(self, pos):
         """return all (x, y, move) adjacent to index.  moves is an array of obects that define dx and dy"""
         x, y = self.coords(pos)
-        for move in moves:
+        for move in self.moves:
             x1 = x + move.dx
             y1 = y + move.dy
             if x1 >= 0 and x1 < self.width and y1 >= 0 and y1 < self.height:
                 yield self.index(x1, y1), move
+
+    def copy(self, val=None):
+        return self.__class__(self.width, self.height, val, moves=self.moves)
     
+    def smell(self, cell_type):
+        """make a board where the values are the least number of moves from
+        each cell to the nearest cell_type"""
+
+        # by default, everything is infinite moves away
+        smell = self.copy()
+
+        # start with all cells in cell_type
+        todo = deque()
+        for pos, val in enumerate(self):
+            if cell_type.matches(val):
+                todo.append((pos, 0))
+
+        # keep adding neighbours at increasing distance
+        max_dist = 0
+        while todo:
+            pos, dist = todo.popleft()
+            
+            # stop if this cell is already hit or is opaque
+            if smell[pos] is not None:
+                continue
+
+            smell[pos] = dist
+            if dist > max_dist:
+                max_dist = dist
+            for next_pos, _next_move in self.neighbours(pos):
+                if smell[next_pos] is None and cell_type.can_move(self[next_pos]):
+                    todo.append((next_pos, dist+1))
+
+        return smell, max_dist
+
     def dump(self):
         s = ""
         for i, val in enumerate(self):
