@@ -1,5 +1,7 @@
 from collections import namedtuple, deque
 
+INF = float('inf')
+
 Move = namedtuple('Move', ['name', 'dx', 'dy'], verbose=True)
 
 ManhattanMoves = (
@@ -20,6 +22,12 @@ CompassMoves = (
     Move("NW", -1, -1),
 )
 
+class DEFAULT():
+    pass
+
+def isdefault(v):
+    return v is DEFAULT
+
 class CellType(object):
     def __init__(self, values):
         self.values = values
@@ -33,20 +41,23 @@ class CellType(object):
 class Board(list):
     """A 2-d array of values, stored in a list"""
 
-
-    def __init__(self, width, height, val=None, moves=None):
+    def __init__(self, width, height, val=DEFAULT, moves=DEFAULT):
         super(Board, self).__init__()
 
         self.width = width
         self.height = height
-        if moves is None:
+
+        if isdefault(moves):
             moves = ManhattanMoves
         self.moves = moves
 
+        if isdefault(val):
+            val = None
+            
         if not callable(val):
             f = lambda x, y: val
         else:
-            f = val
+            f = val # pylint: disable=redefined-variable-type
 
         for y in range(height):
             for x in range(width):
@@ -83,15 +94,20 @@ class Board(list):
             if x1 >= 0 and x1 < self.width and y1 >= 0 and y1 < self.height:
                 yield self.index(x1, y1), move
 
-    def copy(self, val=None):
+    def copy(self, val=DEFAULT):
         return self.__class__(self.width, self.height, val, moves=self.moves)
-    
+
+    def remap_none(self, val=INF):
+        for i, x in enumerate(self):
+            if x is None:
+                self[i] = val
+        
     def smell(self, cell_type):
         """make a board where the values are the least number of moves from
         each cell to the nearest cell_type"""
 
         # by default, everything is infinite moves away
-        smell = self.copy()
+        smell = self.copy(val=None)
 
         # start with all cells in cell_type
         todo = deque()
@@ -115,9 +131,10 @@ class Board(list):
                 if smell[next_pos] is None and cell_type.can_move(self[next_pos]):
                     todo.append((next_pos, dist+1))
 
+        smell.remap_none()
         return smell, max_dist
 
-    def dump(self):
+    def __str__(self):
         s = ""
         for i, val in enumerate(self):
             if i>0 and (i % self.width)==0:

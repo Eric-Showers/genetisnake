@@ -1,5 +1,5 @@
 import pytest
-from genetisnake.board import Board, CompassMoves, ManhattanMoves, CellType
+from genetisnake.board import Board, CompassMoves, ManhattanMoves, CellType, INF
 
 def test_board():
     board = Board(3,5)
@@ -11,7 +11,7 @@ def test_board():
     board = Board.load(*board_lines)
     assert board.width == 6
     assert board.height == 3
-    assert board.dump() == "123456\nabcdef\nABCDEF\n"
+    assert str(board) == "123456\nabcdef\nABCDEF\n"
     assert list(enumerate("".join(board_lines))) == list(enumerate(board))
     assert board[board.index(3,1)] == 'd'
 
@@ -56,9 +56,9 @@ def test_smell_food():
         )
 
     assert board.smell(MyCellType('*')) == ([
-        3,    2, 1, 2, None,    4,
-        4, None, 0, 1,    2,    3,
-        5, None, 1, 2, None, None,
+        3,    2, 1, 2,  INF,    4,
+        4,  INF, 0, 1,    2,    3,
+        5,  INF, 1, 2,  INF,  INF,
         4,    3, 2, 3,    4,    5], 5)
 
 def test_smell_enemy():
@@ -70,10 +70,10 @@ def test_smell_enemy():
         )
 
     assert board.smell(MyCellType('BC')) == ([
-           2,    3, 4, 3, None,    3,
-           1, None, 3, 2,    1,    2,
-           0, None, 2, 1,    0, None,
-        None,    4, 3, 2,    1,    2], 4)
+           2,    3, 4, 3,  INF,    3,
+           1,  INF, 3, 2,    1,    2,
+           0,  INF, 2, 1,    0,  INF,
+         INF,    4, 3, 2,    1,    2], 4)
 
 def test_smell_space():
     board = Board.load(
@@ -84,7 +84,7 @@ def test_smell_space():
         )
 
     assert board.smell(MyCellType('BC')) == ([
-           2,    3, 4, 3, None,    3,
-           1, None, 3, 2,    1,    2,
-           0, None, 2, 1,    0, None,
-        None,    4, 3, 2,    1,    2], 4)
+           2,    3, 4, 3,  INF,    3,
+           1,  INF, 3, 2,    1,    2,
+           0,  INF, 2, 1,    0,  INF,
+         INF,    4, 3, 2,    1,    2], 4)

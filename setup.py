@@ -34,4 +34,10 @@ setuptools.setup(
         test=TESTS_REQUIRE,
         tests=TESTS_REQUIRE,
         ),
+    entry_points={
+        'console_scripts': [
+            'training = genetisnake.training:evolve',
+            ],
+        },
+    
 )

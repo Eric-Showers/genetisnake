@@ -1,53 +1,50 @@
 import math
 import itertools
 from random import randint
+import logging
 
-from genetisnake.board import Board
+from . import snake_board
+
+LOG = logging.getLogger(__name__)
 
 class SnakePlayer(object):
-    def __init__(self, snake, name, cell_type):
+    def __init__(self, game, snake, name, board_id):
+        self.game = game
         self.snake = snake
         self.name = name
-        self.cell_type = cell_type
+        self.board_id = board_id
         self.killed = None
         self.health = 0
         self.body = []
         self.length = 0
+        self.last_move = None
+        self.turns = 0
 
-    def move(self, game, board):
-        return self.snake.move(game, board)
+    def move(self, game, board, index):
+        return self.snake.move(game, board, index)
 
-    def __repr__(self):
+    def __str__(self):
         if self.killed:
-            state = "killed=%s" % (self.killed,)
+            state = "turns=%s last_move=%s killed=%s" % (self.turns, self.last_move, self.killed,)
         else:
             state = "health=%s length=%s" % (self.health, self.length)
         
-        return "%s(id=%s name=%s %s)" % \
-               (self.__class__.__name__, self.cell_type, self.name, state)
+        return "%s(board_id=%s name=%s %s)" % \
+               (self.__class__.__name__, self.board_id, self.name, state)
 
-class SnakeBoard(Board):
-    MOVES = { 
-        "up":    ( 0, -1),
-        "right":  ( 1,  0),
-        "down":  ( 0,  1),
-        "left": (-1,  0),
-        }
-    
-    def move(self, pos, move_name):
-        """return a new position after a move"""
-        dx, dy = self.MOVES[move_name]
-        x, y = self.coords(pos)
-        x += dx
-        y += dy
-        return self.index(x, y)
-        
+    def to_dict(self):
+        return dict(
+            name = self.name,
+            board_id = self.board_id,
+            killed = self.killed,
+            body = [self.coords(pos) for pos in self.body],
+            turns = self.turns,
+            health = self.health,
+            )
+
 class Game(object):
-    MAX_HEALTH      = 20
+    MAX_HEALTH      = 100
     INITIAL_LENGTH  = 3
-    CELL_TYPE_EMPTY = ' '
-    CELL_TYPE_FOOD  = '+'
-    CELL_TYPE_WALL  = '#'
 
     def __init__(self, width, height):
         self.width = width
@@ -59,134 +56,171 @@ class Game(object):
         self.food_count = 4
         self.walls = []
         self.snake_by_cell = {}
+        self.board = None
 
+    def coords(self, index):
+        return (index % self.width, index / self.width)
+        
     def add_snake(self, snake, name=None):
-        assert len(self.snakes) < 26, "Too many snakes! Max 26"
-        cell_type = chr(ord('a') + len(self.snakes))
+        snake_index = len(self.snakes)
+        board_id = snake_board.CELL_TYPE_SNAKE[snake_index]
         if name is None:
-            name = cell_type
-        player = SnakePlayer(snake, name, cell_type)
-        self.snake_by_cell[player.cell_type] = player
+            name = board_id
+        player = SnakePlayer(self, snake, name, board_id)
+        self.snake_by_cell[player.board_id] = player
         self.snakes.append(player)
         return player
 
-    def load(self, rec):
-        pass
-    
+    def render(self):
+        self.board = snake_board.SnakeBoard(self.width, self.height)
+        self.board.put_list(self.food, snake_board.CELL_TYPE_FOOD)
+        self.board.put_list(self.walls, snake_board.CELL_TYPE_WALL)
+        for snake in self.snakes:
+            self.board.put_list(snake.body, snake.board_id.lower())
+            if snake.body:
+                self.board[snake.body[0]] = snake.board_id
+        return self.board
+
     def start(self):
         self.turn_count = 0
 
-        board = self.render()
+        self.render()
         
         # all snakes start around the center
         for i, snake in enumerate(self.snakes):
             t = 2 * math.pi * i / len(self.snakes) 
-            r = board.width/4
-            x = int(r * math.cos(t)) + board.width/2
-            y = int(r * math.sin(t)) + board.height/2
-            pos = board.index(x, y)
+            r = self.board.width/4
+            x = int(r * math.cos(t)) + self.board.width/2
+            y = int(r * math.sin(t)) + self.board.height/2
+            pos = self.board.index(x, y)
             snake.body = [pos]
             snake.health = self.MAX_HEALTH
             snake.length = self.INITIAL_LENGTH
 
         # 4 foods at the center
-        x = int(board.width/2)
-        y = int(board.height/2)
+        x = int(self.board.width/2)
+        y = int(self.board.height/2)
         for dx, dy in itertools.product([-2, 2], [-2, 2]):
-            pos = board.index(x+dx, y+dy)
-            assert board[pos] == self.CELL_TYPE_EMPTY, \
+            pos = self.board.index(x+dx, y+dy)
+            assert self.board[pos] == snake_board.CELL_TYPE_EMPTY, \
                    "Collision at %s. board too small for snakes and food?" % pos
             self.food.append(pos)
         self.food_count = 4
 
-    def render_list(self, board, pos_list, cell):
-        for pos in pos_list:
-            assert board[pos] == self.CELL_TYPE_EMPTY, \
-                   "Render collision at %s: Can't place '%s' over '%s' at (%s)" % \
-                   (pos, cell, board[pos], board.coords(pos))
-            board[pos] = cell
-        
-    def render(self):
-        board = SnakeBoard(self.width, self.height, self.CELL_TYPE_EMPTY)
-        self.render_list(board, self.food, self.CELL_TYPE_FOOD)
-        self.render_list(board, self.walls, self.CELL_TYPE_WALL)
-        for snake in self.snakes:
-            self.render_list(board, snake.body, snake.cell_type)
-        return board
+        self.render()
+        return self.board
 
-    def add_stuff(self, board):
+    def add_stuff(self):
         # add more food and walls
         while len(self.food) < self.food_count:
-            pos = randint(1, len(board))-1
-            if board[pos] == self.CELL_TYPE_EMPTY:
+            pos = randint(1, len(self.board))-1
+            if self.board[pos] == snake_board.CELL_TYPE_EMPTY:
                 self.food.append(pos)
-                board[pos] = self.CELL_TYPE_FOOD
+                self.board[pos] = snake_board.CELL_TYPE_FOOD
         
     def turn(self):
         self.turn_count += 1
 
-        board = self.render()
+        self.board = self.render()
 
-        # move snakes
-        for snake in self.snakes:
-            # ask the snake for its next move name
+        LOG.debug("Game.turn: turn_count=%s board=\n%s\n", self.turn_count, self.board)
+
+        killed = set()
+        def kill(snake, reason):
+            if not snake.killed:
+                snake.killed = reason
+                snake.turns = self.turn_count
+                LOG.debug("game.turn killed snake %s", snake)
+                self.killed.append(snake)
+                killed.add(snake)
+        
+        # query all snakes for their move
+        for i, snake in enumerate(self.snakes):
             try: 
-                move_name = snake.move(self, board)
+                # ask the snake for its next move name
+                snake.last_move = snake.move(self, self.board, i)
             except Exception as e:
-                snake.killed = "Failed to move: %s" % e.message
+                kill(snake, "Failed to move: %s" % e.message)
                 continue
 
             # get the new move's pos on the board
             try:
-                pos = board.move(snake.body[0], move_name)
+                pos = self.board.move(snake.body[0], snake.last_move)
             except ValueError:
-                snake.killed = "Invalid move: %s" % move_name
+                kill(snake, "Invalid move: %s" % snake.last_move)
                 continue
             except IndexError:
-                snake.killed = "Moved out of bounds"
+                kill(snake, "Moved out of bounds")
                 continue
 
+        # move snakes
+        for i, snake in enumerate(self.snakes):
+            if snake.killed:
+                continue
+            pos = self.board.move(snake.body[0], snake.last_move)
             snake.body.insert(0, pos)
             for pos in snake.body[snake.length:]:
-                board[pos] = self.CELL_TYPE_EMPTY
+                self.board[pos] = snake_board.CELL_TYPE_EMPTY
             del snake.body[snake.length:]
 
         # place the new heads and detect collisions
         for snake in self.snakes:
+            if snake.killed:
+                continue
             pos = snake.body[0]
-            cell = board[pos]
-            if cell == self.CELL_TYPE_EMPTY:
+            cell = self.board[pos]
+            if cell == snake_board.CELL_TYPE_EMPTY:
                 snake.health -= 1
                 if snake.health <= 0:
-                    snake.killed = "Starvation!"
-                board[pos] = snake.cell_type
-            elif cell == self.CELL_TYPE_FOOD:
+                    kill(snake, "Starvation!")
+                self.board[pos] = snake.board_id
+            elif cell == snake_board.CELL_TYPE_FOOD:
                 snake.length += 1
                 snake.health = self.MAX_HEALTH
-                board[pos] = snake.cell_type
+                self.board[pos] = snake.board_id
                 self.food.remove(pos)
-            elif cell == self.CELL_TYPE_WALL:
-                snake.killed = "Ran into wall!"
+            elif cell == snake_board.CELL_TYPE_WALL:
+                kill(snake, "Ran into wall!")
             else:
-                other = self.snake_by_cell[cell]
+                other = self.snake_by_cell[cell.upper()]
                 if other == snake:
-                    snake.killed = "Ran into self!"
+                    kill(snake, "Ran into self!")
                 else:
-                    snake.killed = "Ran into %s!" % other.name
+                    kill(snake, "Ran into %s!" % other.name)
                     if pos == other.body[0]:
                         # head to head, both are dead
-                        other.killed = "Ran into %s!" % snake.name
-        
-        for snake in self.snakes:
-            if snake.killed:
-                self.killed.append(snake)
-                self.snakes.remove(snake)
+                        kill(other, "Ran into %s!" % snake.name)
 
-        return board
-                
+        # remove killed snakes and maybe rerender board
+        if killed:
+            self.snakes = [ snake for snake in self.snakes if not snake.killed ]
+
+        self.board = self.render()
+
+        # add more walls and food
+        self.add_stuff()
+        
+        return self.board
+
+    def to_dict(self):
+        return dict(
+            width = self.width,
+            height = self.height,
+            turn = self.turn_count,
+            snakes = [ snake.to_dict() for snake in self.snakes ],
+            killed = [ snake.to_dict() for snake in self.killed ],
+            food = [ self.coords(pos) for pos in self.food ],
+            walls = [ self.coords(pos) for pos in self.walls ],
+            )
+
+    def __str__(self):
+        board_lines = str(self.board).split('\n')
+        snake_lines = [ str(snake) for snake in itertools.chain(self.snakes, self.killed) ]
+        fmt = '|{0:<%d}| {1}' % (self.width,)
+        return "\n".join(fmt.format(*l)
+                         for l in itertools.izip_longest(board_lines, snake_lines, fillvalue=''))
+        
     def run(self):
-        board = self.start()
-        yield self.render()
+        yield self.start()
         while self.snakes:
-            board = self.turn()
-            yield board
+            yield self.turn()
