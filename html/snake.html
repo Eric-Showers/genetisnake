@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=utf-8>
+    <title>Snakes!</title>
+    <script src="https://code.jquery.com/jquery-3.1.1.js"></script>
+    <script src="libs/three.js"></script>
+    <script src="libs/TrackballControls.js"></script>
+    <script src="libs/stats.js"></script>
+    <script src="libs/dat.gui.js"></script>
+    <style>
+     body {
+	 margin: 0;
+         overflow: hidden;
+     }
+     #scene {
+	 width: 100%;
+	 height: 100%;
+	 border: 5px solid red;
+     }
+    </style>
+  </head>
+  <body>
+
+    <div id="scene"></div>
+
+    <div style="position: absolute; left: 0px; top: 0px;">
+      <h1>Snakes!</h1>
+    </div>
+    
+    <script>
+     var renderer;
+     var scene;
+
+     var game;
+     /* {"width": 20, "walls": [], "snakes": [{"body": [[3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6], [8, 6], [8, 5], [8, 4], [8, 3], [9, 3], [9, 4], [10, 4], [10, 3]], "board_id": "C", "health": 100, "name": "C", "turns": 0, "killed": null}, {"body": [[19, 7], [19, 6], [19, 5], [19, 4], [19, 3], [19, 2], [19, 1], [19, 0], [18, 0], [17, 0], [16, 0], [15, 0], [14, 0], [13, 0], [12, 0], [12, 1]], "board_id": "E", "health": 93, "name": "E", "turns": 0, "killed": null}, {"body": [[5, 16], [5, 17], [4, 17], [4, 16], [4, 15], [4, 14], [3, 14], [2, 14], [1, 14], [1, 13], [2, 13], [3, 13], [3, 12], [3, 11], [3, 10], [3, 9], [3, 8], [4, 8], [5, 8]], "board_id": "H", "health": 98, "name": "H", "turns": 0, "killed": null}], "turn": 167, "food": [[13, 8], [8, 15], [2, 5], [11, 6]], "killed": [{"body": [[16, 6], [17, 6], [18, 6], [18, 5], [18, 4], [17, 4], [16, 4]], "board_id": "F", "health": 97, "name": "F", "turns": 38, "killed": "Ran into D!"}, {"body": [[16, 6], [15, 6], [14, 6], [13, 6], [12, 6], [12, 7], [12, 8]], "board_id": "D", "health": 100, "name": "D", "turns": 38, "killed": "Ran into F!"}, {"body": [[18, 8], [19, 8], [19, 7], [19, 6], [19, 5], [19, 4], [19, 3], [19, 2]], "board_id": "G", "health": 85, "name": "G", "turns": 45, "killed": "Ran into A!"}, {"body": [[18, 8], [18, 9], [18, 10], [18, 11]], "board_id": "A", "health": 96, "name": "A", "turns": 45, "killed": "Ran into G!"}, {"body": [[19, 1], [19, 0], [18, 0]], "board_id": "B", "health": 0, "name": "B", "turns": 100, "killed": "Starvation!"}], "height": 20}; */
+     
+     function init() {
+	 var controls = new function() {
+	     this.pointLightIntensity = .6;
+	 }
+
+	 var gui = new dat.GUI();
+	 gui.add(controls, 'pointLightIntensity', 0, 3).onChange(function(e) {
+	     pointLight.intensity = e;
+	 });
+
+         var clock = new THREE.Clock();
+	 var scene = new THREE.Scene();
+
+	 renderer = new THREE.WebGLRenderer();
+	 renderer.setClearColor(0xEEEEEE, 1.0);
+	 renderer.setSize(window.innerWidth, window.innerHeight);
+	 renderer.shadowMap.Enabled = true;
+	 
+	 camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+         camera.position.set(0, 0, 30);
+         camera.lookAt(scene.position);
+
+         var trackballControls = new THREE.TrackballControls(camera);
+         trackballControls.rotateSpeed = 1.0;
+         trackballControls.zoomSpeed = 1.0;
+         trackballControls.panSpeed = 1.0;
+         trackballControls.staticMoving = true;
+	 
+	 var spotLight = new THREE.SpotLight(0xffffff);
+	 spotLight.position.set(-20, 30, 10);
+	 spotLight.castShadow = true;
+	 scene.add(spotLight);
+	 
+	 var pointLight = new THREE.PointLight(0xccffcc);
+	 pointLight.position.set(-5, 5, 20);
+	 pointLight.intensity = controls.pointLightIntensity;
+	 scene.add(pointLight);
+	 // debug
+	 //var pointLightAxes = new THREE.AxisHelper(10);
+	 //pointLight.add(pointLightAxes);
+	 
+	 var BOARD_WIDTH = 20;
+	 var BOARD_HEIGHT = 20;	 
+
+	 var board_geometry = new THREE.PlaneBufferGeometry(BOARD_WIDTH, BOARD_HEIGHT, 32);
+	 var board_material = new THREE.MeshLambertMaterial({color: 0xcccccc});
+	 var board = new THREE.Mesh(board_geometry, board_material);
+	 board.receiveShadow = true;
+	 scene.add(board);
+	 // debug
+	 //var boardAxes = new THREE.AxisHelper(10);
+	 //board.add(boardAxes);
+
+	 var snake_group = new THREE.Group();
+	 board.add(snake_group);
+
+	 // render all snakes on the board
+	 function game_render(game) {
+	     // remove old snakes
+	     for (var i = snake_group.children.length - 1; i >= 0; i--) {
+		 snake_group.remove(snake_group.children[i]);
+	     }
+	     
+	     // the center point of a board cell
+	     function board_point(cell_x, cell_y, pt_z) {
+		 var pt_x = (cell_x + 0.5) * BOARD_WIDTH / game.width - BOARD_WIDTH / 2;
+		 var pt_y = BOARD_HEIGHT / 2 - (cell_y + 0.5) * BOARD_HEIGHT / game.height;
+		 return new THREE.Vector3(pt_x, pt_y, pt_z);
+	     }
+
+	     var snake_body_width = BOARD_WIDTH / game.width / 2 * .9;
+	     
+	     // food!
+	     var food_geometry = new THREE.SphereBufferGeometry(snake_body_width, 8, 8);
+	     var food_material = new THREE.MeshLambertMaterial({color: 0xffff00});
+	     for(var food_i=0; food_i<game.food.length; food_i++) {
+		 var food = game.food[food_i];
+		 var food_mesh = new THREE.Mesh(food_geometry, food_material);
+		 food_mesh.position.copy(board_point(food[0], food[1], snake_body_width));
+		 snake_group.add(food_mesh);
+	     }
+		 
+	     // body cross section
+	     var SNAKE_BODY_SECTION_NPTS = 6;
+	     var body_section_pts = []
+	     for(var i = 0; i < SNAKE_BODY_SECTION_NPTS; i++) {
+		 var r = snake_body_width;
+		 var a = 2 * Math.PI * i / SNAKE_BODY_SECTION_NPTS;
+		 body_section_pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a)*r));
+	     }
+	     var body_section_shape = new THREE.Shape(body_section_pts);
+
+	     // extrude each snake
+	     for(var snake_i=0; snake_i<game.snakes.length; snake_i++) {
+		 var snake = game.snakes[snake_i];
+
+		 // body path
+		 if( snake.body.length > 1 )  {
+		     var body_points = [];
+		     for(var body_i=0; body_i<snake.body.length; body_i++) {
+			 var body = game.snakes[snake_i].body;
+			 body_points.push(board_point(body[body_i][0], body[body_i][1], snake_body_width));
+		     }
+		     var body_curve = new THREE.CatmullRomCurve3(body_points);
+		     body_curve.type = 'catmullrom';
+		     body_curve.tension = 0.2;
+		     var body_geometry = new THREE.ExtrudeGeometry(body_section_shape, {
+			 extrudePath: body_curve,
+			 steps: snake.body.length * 10,
+			 bevelEnabled: false,
+		     });
+		     body_geometry.computeVertexNormals();
+		     var body_material = new THREE.MeshLambertMaterial({ color: 0xff8000, wireframe: false });
+		     var snake_mesh = new THREE.Mesh(body_geometry, body_material);
+		     snake_group.add(snake_mesh);
+		 }
+	     }
+	 }
+
+	 var GAME_FPS = 20;
+	 var game_dirty = false;
+	 var game_index = -1;
+	 var game_data;
+	 
+	 function game_load(url) {
+	     // load the game.  When loaded, set game_dirty
+	     $.getJSON(url, function(data) {
+		 game_data = data;
+		 game_dirty = true;
+		 game_index = 0;
+	     });
+	 }
+	 game_load("game.json");
+	 
+	 function game_update_timer() {
+	     // after rendering, set the timer to render the next frame
+	     game_index += 1;
+	     if( game_index >= game_data.length ) {
+		 // TODO - load next game
+		 game_index = 0;
+	     }
+	     game = game_data[game_index];
+	     game_dirty = true;
+	 }
+
+	 function render() {
+             var delta = clock.getDelta();
+             trackballControls.update(delta);
+
+	     if( game_dirty ) {
+		 game_render(game_data[game_index]);
+		 game_dirty = false;
+		 setTimeout(game_update_timer, 1000 / GAME_FPS);
+	     }
+
+	     
+             renderer.render(scene, camera);
+             requestAnimationFrame(render);
+         }
+
+	 document.getElementById("scene").appendChild(renderer.domElement);
+	 render();
+     }
+     window.onload = init;
+
+     function resize() {
+         camera.aspect = window.innerWidth / window.innerHeight;
+         camera.updateProjectionMatrix();
+         renderer.setSize(window.innerWidth, window.innerHeight);
+     }
+     window.addEventListener('resize', resize, false);
+
+     
+    </script>
+  </body>
+</html>
