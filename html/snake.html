@@ -88,6 +88,24 @@
 	 //var boardAxes = new THREE.AxisHelper(10);
 	 //board.add(boardAxes);
 
+	 
+	 function SnakeCurve(body_pts) {
+	     this.body_pts = body_pts;
+	 }
+	 SnakeCurve.prototype = Object.create(THREE.Curve.prototype);
+	 SnakeCurve.prototype.constructor = SnakeCurve;
+	 SnakeCurve.prototype.getPoint = function(t) {
+	     var ti = t * (this.body_pts.length-1);
+	     var i0 = Math.floor(ti);
+	     if(i0 >= this.body_pts.length-1) {
+		 i0 = this.body_pts.length-2;
+	     }
+	     var i1 = i0 + 1;
+	     var dt = ti - i0;
+	     var pt = this.body_pts[i0].clone().lerp(this.body_pts[i1], dt);
+	     return pt;
+	 }
+
 	 var snake_group = new THREE.Group();
 	 board.add(snake_group);
 
@@ -116,37 +134,19 @@
 		 food_mesh.position.copy(board_point(food[0], food[1], snake_body_width));
 		 snake_group.add(food_mesh);
 	     }
-		 
-	     // body cross section
-	     var SNAKE_BODY_SECTION_NPTS = 6;
-	     var body_section_pts = []
-	     for(var i = 0; i < SNAKE_BODY_SECTION_NPTS; i++) {
-		 var r = snake_body_width;
-		 var a = 2 * Math.PI * i / SNAKE_BODY_SECTION_NPTS;
-		 body_section_pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a)*r));
-	     }
-	     var body_section_shape = new THREE.Shape(body_section_pts);
 
 	     // extrude each snake
 	     for(var snake_i=0; snake_i<game.snakes.length; snake_i++) {
 		 var snake = game.snakes[snake_i];
-
 		 // body path
-		 if( snake.body.length > 1 )  {
+		 if( snake.body.length > 1 ) {
 		     var body_points = [];
 		     for(var body_i=0; body_i<snake.body.length; body_i++) {
 			 var body = game.snakes[snake_i].body;
 			 body_points.push(board_point(body[body_i][0], body[body_i][1], snake_body_width));
 		     }
-		     var body_curve = new THREE.CatmullRomCurve3(body_points);
-		     body_curve.type = 'catmullrom';
-		     body_curve.tension = 0.2;
-		     var body_geometry = new THREE.ExtrudeGeometry(body_section_shape, {
-			 extrudePath: body_curve,
-			 steps: snake.body.length * 10,
-			 bevelEnabled: false,
-		     });
-		     body_geometry.computeVertexNormals();
+		     var body_geometry = new THREE.TubeGeometry(new SnakeCurve(body_points), 5*snake.body.length, snake_body_width, 8, false);
+		     //body_geometry.computeVertexNormals();
 		     var body_material = new THREE.MeshLambertMaterial({ color: 0xff8000, wireframe: false });
 		     var snake_mesh = new THREE.Mesh(body_geometry, body_material);
 		     snake_group.add(snake_mesh);
