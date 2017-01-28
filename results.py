@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 
 re_gen   = re.compile(r'^generation=(?P<gen>\d+) done')
 re_turns = re.compile(r'^turns=(?P<turns>\d+) func=([-\d.]+) (?P<func>.*)')
-re_start = re.compile(r'evolve (?P<game>generation=(?P<gen>\d+) round=\d+ game=\d+)')
-re_game_turn = re.compile(r'^-+ turn=(?P<turn>\d+)')
+re_start = re.compile(r'(?P<game>generation=(?P<gen>\d+) round=\d+ game=\d+)')
+re_game_turn = re.compile(r'^turn=(?P<turn>\d+).*')
 
 gen = None
 

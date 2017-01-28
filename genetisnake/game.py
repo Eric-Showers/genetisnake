@@ -37,7 +37,7 @@ class SnakePlayer(object):
             name = self.name,
             board_id = self.board_id,
             killed = self.killed,
-            body = [self.coords(pos) for pos in self.body],
+            body = [self.game.coords(pos) for pos in self.body],
             turns = self.turns,
             health = self.health,
             )

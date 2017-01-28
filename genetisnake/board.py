@@ -2,7 +2,7 @@ from collections import namedtuple, deque
 
 INF = float('inf')
 
-Move = namedtuple('Move', ['name', 'dx', 'dy'], verbose=True)
+Move = namedtuple('Move', ['name', 'dx', 'dy'])
 
 ManhattanMoves = (
     Move("N",  0, -1),
