@@ -165,6 +165,7 @@
 	     // extrude each snake
 	     for(var snake_i=0; snake_i<game.snakes.length; snake_i++) {
 		 var snake = game.snakes[snake_i];
+		 var game_snake = game_snakes[snake.board_id];
 		 // body path
 		 if( snake.body.length > 1 ) {
 		     var body_points = [];
@@ -174,7 +175,7 @@
 		     }
 		     var body_geometry = new THREE.TubeGeometry(new SnakeCurve(body_points), 5*snake.body.length, snake_body_width, 8, false);
 		     //body_geometry.computeVertexNormals();
-		     var body_material = new THREE.MeshLambertMaterial({ color: 0xff8000, wireframe: false, side: THREE.DoubleSide});
+		     var body_material = new THREE.MeshLambertMaterial({color: game_snake.color, wireframe: false, side: THREE.DoubleSide});
 		     var snake_mesh = new THREE.Mesh(body_geometry, body_material);
 		     snake_group.add(snake_mesh);
 		 }
@@ -186,6 +187,7 @@
 	 var game_dirty = false;
 	 var game_turn_index = -1;
 	 var game_turn_data;
+	 var game_snakes;
 
 	 function load_games_table(games) {
 	     var rowData = [];
@@ -238,6 +240,19 @@
 	     });
 	 }
 	 load_games_list("training/games.json");
+
+	 function stringToColour(str) {
+	     var hash = 0;
+	     for (var i = 0; i < str.length; i++) {
+		 hash = str.charCodeAt(i) + ((hash << 5) - hash);
+	     }
+	     var colour = '#';
+	     for (var i = 0; i < 3; i++) {
+		 var value = (hash >> (i * 8)) & 0xFF;
+		 colour += ('00' + value.toString(16)).substr(-2);
+	     }
+	     return colour;
+	 }
 	 
 	 function load_game(url) {
 	     // load the game.  When loaded, set game_dirty
@@ -246,6 +261,17 @@
 		 game_turn_data = data["turns"];
 		 game_turn_index = 0;
 		 game_dirty = true;
+
+		 snakes = data["snakes"];
+		 game_snakes = Object();
+		 for(var i=0; i<snakes.length; i++) {
+		     var snake = snakes[i];
+		     if( !snake.color ) {
+			 snake.color = stringToColour(snakes[i].func);
+		     }
+		     game_snakes[snake.board_id] = snakes[i];
+		 }
+		 
 	     });
 	 }
 	 
