@@ -13,6 +13,8 @@
     <link href="libs/jquery.splitter.css" rel="stylesheet"/>
     <script src="libs/datatables.js"></script>
     <link href="libs/datatables.css" rel="stylesheet"/>
+    <script src="libs/jquery-ui-1.12.1.custom/jquery-ui.js"></script>
+    <link href="libs/jquery-ui-1.12.1.custom/jquery-ui.css" rel="stylesheet"/>
     <style>
      body {
 	 margin: 0;
@@ -39,12 +41,39 @@
 	 border: 2px solid yellow;
      }
 
+     #control_panel {
+	 margin-left: 10px;
+	 margin-right: 10px;
+     }
+     
+     #play_controls {
+	 display: flex;
+	 width: 100%;
+	 align-items: center;
+	 margin-top: 50px;
+     }
+
+     #play_slider {
+	 flex-grow: 1;
+	 margin-left: 15px;
+	 margin-right: 15px;
+     }
+     
+
     </style>
   </head>
   
   <body>
     <div id="main_pane">
-      <div id="scene_pane"></div>
+      <div id="board_pane">
+	<div id="scene_pane"></div>
+	<div id="control_panel">
+	  <div id="play_controls">
+	    <input type="checkbox" id="play_button" /><label for="play_button">Playing</label>
+	    <div id="play_slider" width="100%"></div>
+	  </div>
+	</div>
+      </div>
       <div id="right_pane">
 	<div id="right_inner">
 	  <h1>Snakes!</h1>
@@ -62,7 +91,6 @@
      var scene;
      
      function init() {
-	 
 	 var controls = new function() {
 	     this.pointLightIntensity = .6;
 	 }
@@ -84,7 +112,7 @@
          camera.position.set(0, 0, 30);
          camera.lookAt(scene.position);
 
-         var trackballControls = new THREE.TrackballControls(camera);
+         var trackballControls = new THREE.TrackballControls(camera, document.getElementById("scene_pane"));
          trackballControls.rotateSpeed = 1.0;
          trackballControls.zoomSpeed = 1.0;
          trackballControls.panSpeed = 1.0;
@@ -188,7 +216,34 @@
 	 var game_turn_index = -1;
 	 var game_turn_data;
 	 var game_snakes;
+	 var game_playing = true;
+	 
+	 $("#play_slider").slider({
+	     slide: function(event, ui) {
+		 seek(ui.value);
+	     }
+	 });
 
+	 $("#play_button").button({
+	     icons: { primary: 'ui-icon-play'}
+	 }).change(function () {
+	     play($(this).is(':checked'));
+	 });
+
+	 function play(playing) {
+	     game_playing = playing;
+	     if( playing ) {
+		 game_dirty = true;
+	     }
+	 }
+
+	 function seek(pos) {
+	     if( game_turn_data ) {
+		 game_turn_index = pos;
+		 game_dirty = true;
+	     }
+	 }
+	 
 	 function load_games_table(games) {
 	     var rowData = [];
 	     for(var i=0; i<games.length; i++) {
@@ -262,6 +317,8 @@
 		 game_turn_index = 0;
 		 game_dirty = true;
 
+		 $("#play_slider").slider("option", "max", game_turn_data.length - 1);
+
 		 snakes = data["snakes"];
 		 game_snakes = Object();
 		 for(var i=0; i<snakes.length; i++) {
@@ -292,8 +349,11 @@
 
 	     if( game_dirty ) {
 		 game_render(game_turn_data[game_turn_index]);
+		 $("#play_slider").slider("value", game_turn_index);
 		 game_dirty = false;
-		 setTimeout(game_update_timer, 1000 / GAME_FPS);
+		 if( game_playing ) {
+		     setTimeout(game_update_timer, 1000 / GAME_FPS);
+		 }
 	     }
 
 	     
@@ -307,10 +367,19 @@
      window.onload = init;
 
      function resize() {
-	 var splitter = $('#main_pane').width(window.innerWidth).height(window.innerHeight).split({
+	 $('#main_pane').width(window.innerWidth).height(window.innerHeight).split({
 	     orientation: 'vertical',
 	     limit: 10,
 	     position: '60%', // if there is no percentage it interpret it as pixels
+	     onDrag: function(event) {
+		 resize();
+	     }
+	 });
+
+	 $('#board_pane').width($('#board_pane').innerWidth).height(window.innerHeight).split({
+	     orientation: 'horizontal',
+	     limit: 10,
+	     position: window.innerHeight-200,
 	     onDrag: function(event) {
 		 resize();
 	     }
