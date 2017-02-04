@@ -18,19 +18,49 @@
     <script src="libs/Tween.js"></script>
     <style>
      body {
-         margin: 0;
+         margin: 0px;
          overflow: hidden;
      }
      
      #main_pane {
-         width: 100%;
-         height: 100%;
+         position: absolute;
+         top: 0px;
+         left: 0px;
+         bottom: 0px;
+         right: 0px;
          border: 2px solid blue;
      }
 
-     #scene_pane {
+     #board_pane {
+         position: absolute;
+         top: 0px;
+         left: 0px;
+         bottom: 0px;
+         width: 60%;
+     }
+     
+     #scene_and_hud_pane {
          border: 2px solid green;
          overflow: hidden;
+         position: absolute;
+         top: 0px;
+         left: 0px;
+         bottom: 200px;
+         right: 0px;
+     }
+
+     #scene_pane {
+         border: 2px solid red;
+         overflow: hidden;
+         position: absolute;
+         top: 0px;
+         left: 0px;
+         bottom: 0px;
+         right: 0px;
+     }
+
+     #right_pane {
+         border: 2px solid yellow;
      }
 
      #right_inner {
@@ -38,10 +68,6 @@
          margin-left: 10px;
      }
      
-     #right_pane {
-         border: 2px solid yellow;
-     }
-
      #control_panel {
          margin-left: 10px;
          margin-right: 10px;
@@ -60,14 +86,94 @@
          margin-right: 15px;
      }
      
+     #snake-info-list {
+         position: absolute; 
+         top: 10px;
+         width: 300px;
+         right: 10px;
+         bottom: 10px;
+         z-index: 99;
+     }
 
+     .snake-info-block {
+         /* position: absolute; */
+         left: 0px;
+         border: 2px solid blue;
+         border-radius: 15px;
+         margin-bottom: 10px;
+         padding: 10px;
+         background: white;
+         box-shadow: 6px 6px 6px rgba(128, 128, 128, .5);
+     }
+
+     #snake-info-block-template {
+         display: none;
+     }
+     
+     .snake-info-group {
+         margin-left: 10px;
+         width: 85%;
+     }
+     
+     .snake-health-border {
+         height: 10px;
+         background-color: white;
+         border: 1px solid black;
+         left: 0px;
+         right: 0px;
+     }
+
+     .snake-health {
+         height: 10px;
+         background-color: green;
+         left: 0px;
+     }
+     
+     .snake-name {
+         font-weight: bold;
+     }
+
+     .snake-taunt {
+         overflow: hidden;
+         height: 20px;
+     }
+     
+     .snake-img {
+         width: 64px;
+         height: 64px;
+     }
     </style>
   </head>
   
   <body>
     <div id="main_pane">
       <div id="board_pane">
-        <div id="scene_pane"></div>
+        <div id="scene_and_hud_pane">
+          <div id="scene_pane"></div>
+
+          <div id="hud_pane">
+            <div id="snake-info-list">
+              <!-- snake-info-block-template -->
+              <div class="snake-info-block snake-color" id="snake-info-block-template">
+                <table width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td valign="top"><img class="snake-img" src="snake1.jpg"/></td>
+                    <td valign="top" width="100%">
+                      <div class="snake-info-group">
+                        <div class="snake-name">{{item.name}}</div>
+                        <div class="snake-health-border">
+                          <div class="snake-health" style="width: 100%;"></div>
+                        </div>
+                        <div class="snake-taunt"></div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+        </div>
         <div id="control_panel">
           <div id="play_controls">
             <input type="checkbox" id="play_button" /><label for="play_button">Playing</label>
@@ -85,12 +191,60 @@
     </div>
     
     <script>
+
+     function SnakeInfoBlock(id, data) {
+         var self = this;
+         self.id = id;
+         
+         function init(data) {
+             var template = $('#snake-info-block-template');
+             var el = template.clone().prop('id', self.id);
+             template.parent().append(el);
+             if( data ) {
+                 self.set(data);
+             }
+             el.show();
+         }
+
+         self.el = function(sub) {
+             var sel = '#' + self.id
+             if( sub ) {
+                 sel += ' ' + sub;
+             }
+             return $(sel);
+         }
+         
+         self.set = function(data) {
+             if( 'name' in data ) {
+                 self.el('.snake-name').text(data.name);
+             }
+             if( 'taunt' in data ) {
+                 self.el('.snake-taunt').text(data.taunt);
+             }
+             if( 'health' in data ) {
+                 self.el('.snake-health').css('width', '' + data.health + '%');
+             }
+             if( 'color' in data ) {
+                 self.el().css('background', data.color);
+             }
+             if( 'img' in data ) {
+                 self.el('.snake-img').prop('src', data.img);
+             }
+         }
+
+         self.remove = function() {
+             self.el().remove();
+         }
+
+         init();
+     }
+     
      var game;
 
      var renderer;
      var camera;
      var scene;
-     
+
      function init() {
          var controls = new function() {
              this.pointLightIntensity = .6;
@@ -102,16 +256,26 @@
          });
 
          var clock = new THREE.Clock();
-         var scene = new THREE.Scene();
+         scene = new THREE.Scene();
 
-         renderer = new THREE.WebGLRenderer();
-         renderer.setClearColor(0xEEEEEE, 1.0);
-         renderer.setSize(window.innerWidth, window.innerHeight);
-         renderer.shadowMap.Enabled = true;
-         
-         camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+         var scene_pane = $("#scene_pane");
+         var innerWidth = scene_pane.innerWidth();
+         var innerHeight = scene_pane.innerHeight();
+
+         camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 1000);
          camera.position.set(0, 0, 30);
          camera.lookAt(scene.position);
+
+         renderer = new THREE.WebGLRenderer();
+         renderer.setClearColor(0xffffff, 1.0);
+         renderer.setSize(innerWidth, innerHeight);
+         //renderer.shadowMap.Enabled = true;
+         renderer.domElement.style.position = 'absolute';
+         renderer.domElement.style.zIndex = 0;
+         renderer.domElement.style.top = 0;
+         renderer.domElement.style.bottom = 0;
+         renderer.domElement.style.left = 0;
+         renderer.domElement.style.right = 0;
 
          var trackballControls = new THREE.TrackballControls(camera, document.getElementById("scene_pane"));
          trackballControls.rotateSpeed = 1.0;
@@ -264,8 +428,9 @@
                                   .start();
                      }
                  }
-                 
-                 dur = 1750;
+
+                 // fade out body
+                 dur = 1250;
                  mag = 20;
                  new TWEEN.Tween(material)
                           .delay(delay)
@@ -302,6 +467,7 @@
              this.game_snakes = null;
 
              var render_snakes = Object();
+             var snake_infos = Object();
              var food_meshs = [];
              var food_geometry;
              var food_material;
@@ -352,7 +518,7 @@
                          render_snakes[board_id].killed = true;
                      }
                  }
-                 
+
                  // render all snakes
                  for(var snake_i=0; snake_i<board.snakes.length; snake_i++) {
                      var snake = board.snakes[snake_i];
@@ -363,6 +529,15 @@
                      }
                      render_snake.render(snake);
                      render_snake.killed = false;
+
+                     var snake_info_id = "snake-info-" + snake.board_id;
+                     var snake_info = snake_infos[snake.board_id];
+                     if( !snake_info ) {
+                         snake_info = new SnakeInfoBlock(snake_info_id);
+                         snake_infos[snake.board_id] = snake_info;
+                     }
+                     snake_info.set(snake);
+                     snake_info.set(game_snakes[snake.board_id]);
                  }
 
                  // explode all killed snakes
@@ -373,7 +548,12 @@
                      }
                      render_snake.explode();
                      delete render_snakes[board_id];
-                     
+
+                     var snake_info = snake_infos[board_id];
+                     if( snake_info ) {
+                         snake_info.remove();
+                         delete snake_infos[board_id];
+                     }
                  }
              }
          }
@@ -495,6 +675,9 @@
                      var snake = snakes[i];
                      if( !snake.color ) {
                          snake.color = stringToColour(snakes[i].func);
+                     }
+                     if( !snake.taunt ) {
+                         snake.taunt = snake.func;
                      }
                      game_snakes[snake.board_id] = snakes[i];
                  }
