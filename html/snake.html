@@ -28,7 +28,6 @@
          left: 0px;
          bottom: 0px;
          right: 0px;
-         border: 2px solid blue;
      }
 
      #board_pane {
@@ -40,7 +39,6 @@
      }
      
      #scene_and_hud_pane {
-         border: 2px solid green;
          overflow: hidden;
          position: absolute;
          top: 0px;
@@ -50,7 +48,6 @@
      }
 
      #scene_pane {
-         border: 2px solid red;
          overflow: hidden;
          position: absolute;
          top: 0px;
@@ -60,7 +57,6 @@
      }
 
      #right_pane {
-         border: 2px solid yellow;
      }
 
      #right_inner {
@@ -96,8 +92,7 @@
      }
 
      .snake-info-block {
-         /* position: absolute; */
-         left: 0px;
+         position: absolute;
          border: 2px solid blue;
          border-radius: 15px;
          margin-bottom: 10px;
@@ -152,31 +147,35 @@
           <div id="scene_pane"></div>
 
           <div id="hud_pane">
-            <div id="snake-info-list">
-              <!-- snake-info-block-template -->
-              <div class="snake-info-block snake-color" id="snake-info-block-template">
-                <table width="100%" cellspacing="0" cellpadding="0">
-                  <tr>
-                    <td valign="top"><img class="snake-img" src="snake1.jpg"/></td>
-                    <td valign="top" width="100%">
-                      <div class="snake-info-group">
-                        <div class="snake-name">{{item.name}}</div>
-                        <div class="snake-health-border">
-                          <div class="snake-health" style="width: 100%;"></div>
-                        </div>
-                        <div class="snake-taunt"></div>
+            <div id="snake-info-list"></div>
+            
+            <!-- snake-info-block-template -->
+            <div class="snake-info-block snake-color" id="snake-info-block-template">
+              <table width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td valign="top"><img class="snake-img" src="snake1.jpg"/></td>
+                  <td valign="top" width="100%">
+                    <div class="snake-info-group">
+                      <div class="snake-name">{{item.name}}</div>
+                      <div class="snake-health-border">
+                        <div class="snake-health" style="width: 100%;"></div>
                       </div>
-                    </td>
-                  </tr>
-                </table>
-              </div>
+                      <div class="snake-turns-killed">
+                        Turns: <span class="snake-turns"></span>
+                        <span class="snake-killed"></span>
+                      </div>
+                      <div class="snake-taunt"></div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
             </div>
+            
           </div>
-          
         </div>
         <div id="control_panel">
           <div id="play_controls">
-            <input type="checkbox" id="play_button" /><label for="play_button">Playing</label>
+            <input type="checkbox" id="play_button" checked/><label for="play_button">Playing</label>
             <div id="play_slider" width="100%"></div>
           </div>
         </div>
@@ -229,6 +228,14 @@
              }
              if( 'img' in data ) {
                  self.el('.snake-img').prop('src', data.img);
+             }
+             if( 'killed' in data ) {
+                 self.el('.snake-killed').text(data.killed);
+             }
+             if( 'turns' in data ) {
+                 self.turns = data.turns;
+                 self.el('.snake-turns').text(data.turns);
+                 self.el('.snake-turns-killed').css('visibility', data.turns ? "visible" : "hidden");
              }
          }
 
@@ -482,7 +489,51 @@
              this.game_snake = function(board_id) {
                  return this.game_snakes[board_id];
              }
-             
+
+             this.layout_snake_info = function() {
+                 // sort into living and dead
+                 var snake_info_killed = [];
+                 var snake_info_living = [];
+                 for(var board_id in snake_infos) {
+                     var snake_info = snake_infos[board_id];
+                     if( snake_info.killed ) {
+                         snake_info_killed.push(snake_info);
+                     }
+                     else {
+                         snake_info_living.push(snake_info);
+                     }
+                 }
+
+                 var container = $('#snake-info-list');
+                 var pos = container.position();
+                 pos.bottom = pos.top + container.innerHeight();
+                 var left = pos.left;
+                 
+                 // killed snakes go from bottom to top
+                 snake_info_killed.sort(function(a, b) { return a.turns - b.turns });
+                 var y = 0;
+                 for(var i=0; i<snake_info_killed.length; i++) {
+                     var el = snake_info_killed[i].el();
+                     var height = el.outerHeight(true);
+                     y += height;
+                     var top = pos.bottom - y;
+                     var width = container.innerWidth() - parseFloat(el.css('padding-left')) - parseFloat(el.css('padding-right'));
+                     el.animate({top: top, left: left, width: width}, 500);
+                 }
+                 
+                 // living snakes go from top to bottom
+                 snake_info_living.sort(function(a, b) { return a.order - b.order });
+                 y = 0;
+                 for(var i=0; i<snake_info_living.length; i++) {
+                     var el = snake_info_living[i].el();
+                     var height = el.outerHeight(true);
+                     var top = pos.top + y;
+                     y += height;
+                     var width = container.innerWidth() - parseFloat(el.css('padding-left')) - parseFloat(el.css('padding-right'));
+                     el.animate({top: top, left: left, width: width}, 500);
+                 }
+             }
+
              this.render = function(game_snakes, board) {
                  this.game_snakes = game_snakes;
                  this.board = board;
@@ -519,7 +570,22 @@
                      }
                  }
 
-                 // render all snakes
+                 // re-layout the snake_info blocks
+                 var snake_info_layout = false;
+                 
+                 function get_snake_info(board_id) {
+                     var snake_info = snake_infos[board_id];
+                     if( !snake_info ) {
+                         var snake_info_id = "snake-info-" + board_id;
+                         snake_info = new SnakeInfoBlock(snake_info_id);
+                         snake_info.order = snake_i;
+                         snake_infos[board_id] = snake_info;
+                         snake_info_layout = true;
+                     }
+                     return snake_info;
+                 }
+
+                 // render living snakes
                  for(var snake_i=0; snake_i<board.snakes.length; snake_i++) {
                      var snake = board.snakes[snake_i];
                      var render_snake = render_snakes[snake.board_id];
@@ -530,36 +596,55 @@
                      render_snake.render(snake);
                      render_snake.killed = false;
 
-                     var snake_info_id = "snake-info-" + snake.board_id;
-                     var snake_info = snake_infos[snake.board_id];
-                     if( !snake_info ) {
-                         snake_info = new SnakeInfoBlock(snake_info_id);
-                         snake_infos[snake.board_id] = snake_info;
+                     var snake_info = get_snake_info(snake.board_id);
+                     if( snake_info.killed ) {
+                         snake_info.killed = false;
+                         snake_info_layout = true;
                      }
-                     snake_info.set(snake);
                      snake_info.set(game_snakes[snake.board_id]);
+                     snake_info.set(snake);
                  }
 
-                 // explode all killed snakes
+                 // update killed snake_infos
+                 for(var snake_i=0; snake_i<board.killed.length; snake_i++) {
+                     var snake = board.killed[snake_i];
+                     var snake_info = get_snake_info(snake.board_id);
+                     if( !snake_info.killed ) {
+                         snake_info.killed = true;
+                         snake_info_layout = true;
+                         snake_info.set(snake);
+                     }
+                 }
+                 
+                 // explode killed snakes
                  for(var board_id in render_snakes) {
                      var render_snake = render_snakes[board_id];
-                     if( !render_snake.killed ) {
-                         continue;
-                     }
-                     render_snake.explode();
-                     delete render_snakes[board_id];
+                     if( render_snake.killed ) {
+                         render_snake.explode();
+                         delete render_snakes[board_id];
 
-                     var snake_info = snake_infos[board_id];
-                     if( snake_info ) {
-                         snake_info.remove();
-                         delete snake_infos[board_id];
+                         var snake_info = snake_infos[board_id];
+                         if( snake_info ) {
+                             snake_info.killed = true;
+                             snake_info_layout = true;
+                         }
                      }
                  }
+                 
+                 // re-layout snake_infos
+                 if( snake_info_layout ) {
+                     this.layout_snake_info();
+                 }
              }
+
+             this.resize = function () {
+                 this.render();
+             }
+
          }
          
 
-         var GAME_FPS = 20;
+         var GAME_FPS = 30;
          var game_list_index = -1;
          var game_dirty = false;
          var game_turn_index = -1;
@@ -696,10 +781,11 @@
          }
 
          function render() {
+             var t0 = performance.now();
              var delta = clock.getDelta();
              trackballControls.update(delta);
              TWEEN.update();
-
+                 
              if( game_dirty ) {
                  if( !game_render ) {
                      game_render = new RenderGame();
@@ -708,12 +794,17 @@
                  $("#play_slider").slider("value", game_turn_index);
                  game_dirty = false;
                  if( game_playing ) {
-                     setTimeout(game_update_timer, 1000 / GAME_FPS);
+                     var next_dt = 1000.0 / GAME_FPS - (performance.now() - t0);
+                     if(  next_dt < 0 ) {
+                         next_dt = 0;
+                     }
+                     setTimeout(game_update_timer, next_dt);
                  }
              }
              renderer.render(scene, camera);
              requestAnimationFrame(render);
          }
+         
          resize();
          document.getElementById("scene_pane").appendChild(renderer.domElement);
          render();
@@ -748,6 +839,7 @@
              renderer.setSize(w, h);
          }
      }
+     
      window.addEventListener('resize', resize, false);
 
      
