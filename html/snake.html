@@ -16,6 +16,7 @@
     <script src="libs/jquery-ui-1.12.1.custom/jquery-ui.js"></script>
     <link href="libs/jquery-ui-1.12.1.custom/jquery-ui.css" rel="stylesheet"/>
     <script src="libs/Tween.js"></script>
+    <script src="libs/vue.js"></script>
     <style>
      body {
          margin: 0px;
@@ -150,21 +151,21 @@
             <div id="snake-info-list"></div>
             
             <!-- snake-info-block-template -->
-            <div class="snake-info-block snake-color" id="snake-info-block-template">
+            <div class="snake-info-block snake-color" id="snake-info-block-template" v-bind:style="{background: color}">
               <table width="100%" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td valign="top"><img class="snake-img" src="snake1.jpg"/></td>
+                  <td valign="top"><img class="snake-img" v-bind:src="img"/></td>
                   <td valign="top" width="100%">
                     <div class="snake-info-group">
-                      <div class="snake-name">{{item.name}}</div>
+                      <div class="snake-name">{{name}}</div>
                       <div class="snake-health-border">
-                        <div class="snake-health" style="width: 100%;"></div>
+                        <div class="snake-health" v-bind:style="{width: health + '%'}"></div>
                       </div>
-                      <div class="snake-turns-killed">
-                        Turns: <span class="snake-turns"></span>
-                        <span class="snake-killed"></span>
+                      <div class="snake-turns-killed" v-bind:style="{visibility: turns ? 'visible' : 'hidden'}">
+                        Turns: <span class="snake-turns">{{turns}}</span>
+                        <span class="snake-killed">{{killed}}</span>
                       </div>
-                      <div class="snake-taunt"></div>
+                      <div class="snake-taunt">{{taunt}}</div>
                     </div>
                   </td>
                 </tr>
@@ -194,15 +195,29 @@
      function SnakeInfoBlock(id, data) {
          var self = this;
          self.id = id;
-         
+         self.vue = null;
+
          function init(data) {
              var template = $('#snake-info-block-template');
              var el = template.clone().prop('id', self.id);
              template.parent().append(el);
+             el.show();
+             self.data = {
+                 'name': null,
+                 'taunt': null,
+                 'health': null,
+                 'color': null,
+                 'img': "snake1.jpg",
+                 'killed': null,
+                 'turns': null
+             }             
+             self.vue = new Vue({
+                 el: '#' + self.id,
+                 data: self.data
+             });
              if( data ) {
                  self.set(data);
              }
-             el.show();
          }
 
          self.el = function(sub) {
@@ -214,28 +229,10 @@
          }
          
          self.set = function(data) {
-             if( 'name' in data ) {
-                 self.el('.snake-name').text(data.name);
-             }
-             if( 'taunt' in data ) {
-                 self.el('.snake-taunt').text(data.taunt);
-             }
-             if( 'health' in data ) {
-                 self.el('.snake-health').css('width', '' + data.health + '%');
-             }
-             if( 'color' in data ) {
-                 self.el().css('background', data.color);
-             }
-             if( 'img' in data ) {
-                 self.el('.snake-img').prop('src', data.img);
-             }
-             if( 'killed' in data ) {
-                 self.el('.snake-killed').text(data.killed);
-             }
-             if( 'turns' in data ) {
-                 self.turns = data.turns;
-                 self.el('.snake-turns').text(data.turns);
-                 self.el('.snake-turns-killed').css('visibility', data.turns ? "visible" : "hidden");
+             for( key in self.data ) {
+                 if( key in data ) {
+                     self.data[key] = data[key];
+                 }
              }
          }
 
@@ -510,7 +507,7 @@
                  var left = pos.left;
                  
                  // killed snakes go from bottom to top
-                 snake_info_killed.sort(function(a, b) { return a.turns - b.turns });
+                 snake_info_killed.sort(function(a, b) { return a.data.turns - b.data.turns });
                  var y = 0;
                  for(var i=0; i<snake_info_killed.length; i++) {
                      var el = snake_info_killed[i].el();
