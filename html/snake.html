@@ -36,7 +36,7 @@
          top: 0px;
          left: 0px;
          bottom: 0px;
-         width: 60%;
+         width: 70%;
      }
      
      #scene_and_hud_pane {
@@ -44,7 +44,7 @@
          position: absolute;
          top: 0px;
          left: 0px;
-         bottom: 200px;
+         bottom: 0px;
          right: 0px;
      }
 
@@ -66,21 +66,31 @@
      }
      
      #control_panel {
+         position: absolute; 
          margin-left: 10px;
          margin-right: 10px;
+         bottom: 10px;
+         left: 0px;
+         right: 300px;
      }
      
      #play_controls {
          display: flex;
          width: 100%;
          align-items: center;
-         margin-top: 50px;
      }
 
      #play_slider {
          flex-grow: 1;
          margin-left: 15px;
          margin-right: 15px;
+     }
+     
+     #game-turn {
+         font-size: 16pt;
+         width: 3em;
+         text-align: right;
+         margin-right: 1em;
      }
      
      #snake-info-list {
@@ -171,13 +181,16 @@
                 </tr>
               </table>
             </div>
+
+
+            <div id="control_panel">
+              <div id="play_controls">
+                <input type="checkbox" id="play_button" checked/><label for="play_button">Play</label>
+                <div id="play_slider" width="100%"></div>
+                <div id="game-turn"></div>
+              </div>
+            </div>
             
-          </div>
-        </div>
-        <div id="control_panel">
-          <div id="play_controls">
-            <input type="checkbox" id="play_button" checked/><label for="play_button">Playing</label>
-            <div id="play_slider" width="100%"></div>
           </div>
         </div>
       </div>
@@ -635,13 +648,12 @@
              }
 
              this.resize = function () {
-                 this.render();
+                 this.layout_snake_info();
              }
 
          }
          
-
-         var GAME_FPS = 30;
+         var GAME_FPS = 25;
          var game_list_index = -1;
          var game_dirty = false;
          var game_turn_index = -1;
@@ -799,45 +811,41 @@
                  }
              }
              renderer.render(scene, camera);
+             $('#game-turn').text(game_turn_index);
              requestAnimationFrame(render);
          }
          
          resize();
          document.getElementById("scene_pane").appendChild(renderer.domElement);
          render();
+
+         function resize() {
+             $('#main_pane').width(window.innerWidth).height(window.innerHeight).split({
+                 orientation: 'vertical',
+                 limit: 10,
+                 position: '75%', // if there is no percentage it interpret it as pixels
+                 onDrag: function(event) {
+                     resize();
+                 }
+             });
+
+             if( camera && renderer ) {
+                 var scene_pane = $("#scene_pane");
+                 var w = scene_pane.innerWidth();
+                 var h = scene_pane.innerHeight();
+                 camera.aspect = w / h;
+                 camera.updateProjectionMatrix();
+                 renderer.setSize(w, h);
+             }
+
+             if( game_render ) {
+                 game_render.resize();
+             }
+         }
+         window.addEventListener('resize', resize, false);
      }
      window.onload = init;
 
-     function resize() {
-         $('#main_pane').width(window.innerWidth).height(window.innerHeight).split({
-             orientation: 'vertical',
-             limit: 10,
-             position: '60%', // if there is no percentage it interpret it as pixels
-             onDrag: function(event) {
-                 resize();
-             }
-         });
-
-         $('#board_pane').width($('#board_pane').innerWidth).height(window.innerHeight).split({
-             orientation: 'horizontal',
-             limit: 10,
-             position: window.innerHeight-200,
-             onDrag: function(event) {
-                 resize();
-             }
-         });
-
-         if( camera && renderer ) {
-             var scene_pane = $("#scene_pane");
-             var w = scene_pane.innerWidth();
-             var h = scene_pane.innerHeight();
-             camera.aspect = w / h;
-             camera.updateProjectionMatrix();
-             renderer.setSize(w, h);
-         }
-     }
-     
-     window.addEventListener('resize', resize, false);
 
      
     </script>
