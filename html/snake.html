@@ -350,7 +350,7 @@
              return new THREE.SpriteMaterial({
                  map: new THREE.CanvasTexture(canvas)
                      //,blending: THREE.AdditiveBlending
-                 ,depthTest: false
+                     //,depthTest: false
              });
          }
 
@@ -379,18 +379,28 @@
                  var c = pt0.clone().add(pt2).multiplyScalar(0.5);
                  var m0 = pt0.clone().add(pt1).multiplyScalar(0.5);
                  var m1 = pt1.clone().add(pt2).multiplyScalar(0.5);
-                 if( c.distanceTo(pt1) < eps ) {
+                 if( c.distanceTo(pt1) < Number.EPSILON ) {
                      return function(t) {
-                         return m0.clone().lerp(t, m1);
-                     }
-                 }
+                         return m0.clone().lerp(m1, t);
+                     }                 }
                  else {
+                     m0.sub(c);
                      m1.sub(c);
-                     m2.sub(c);
-                     var angle = m1.angleTo(m2);
-                     var cross = m1.cross(m2);
+                     var angle = m0.angleTo(m1);
+                     var cross = m0.clone().cross(m1).normalize();
+                     // klugde: angleTo should be signed, so applyAxisAngle(cross, angle) == m1
+                     if( m0.clone().applyAxisAngle(cross, angle).distanceTo(m1) > Number.EPSILON ) {
+                         angle *= -1;
+                     }
+                     
+                     var err = m0.clone().applyAxisAngle(cross, angle).distanceTo(m1);
+                     if( err > Number.EPSILON ) {
+                         // assert: m0.applyAxisAngle(cross, angle) == m1
+                         console.log("ERROR: m0=" + m0 + " can't rotate to m1=" + m1 + " angle=" + angle + " error=" + err);
+                     }
+                     
                      return function(t) {
-                         m1.clone().applyAxisAngle(t*angle, cross).add(c);
+                         return m0.clone().applyAxisAngle(cross, t*angle).add(c);
                      }
                  }
              }
@@ -409,6 +419,7 @@
                  m0 = pts[0].clone().add(pts[1]).multiplyScalar(0.5);
                  m1 = pts[pts.length-1].clone().add(pts[pts.length-2]).multiplyScalar(0.5);
              }
+             
              this.pt = function(t) {
                  if( pts.length < 2 ) {
                      return pts[0];
@@ -416,7 +427,7 @@
 
                  t = t * (pts.length - 1);
                  if( t < 0.5 ) {
-                     return pts[0].clone().lerp(t, m0);
+                     return pts[0].clone().lerp(pts[1], t);
                  }
                  else if( t < pts.length - 1 - 0.5 ) {
                      t -= 0.5;
@@ -424,8 +435,8 @@
                      return interp_funcs[i](t - i);
                  }
                  else {
-                     t -= pts.length - 1;
-                     return m1.clone().lerp(t, pts[pts.length - 1]);
+                     t -= pts.length - 1 - 0.5;
+                     return m1.clone().lerp(pts[pts.length - 1], t*2);
                  }
              }
          }
@@ -441,40 +452,48 @@
              this.render = function(snake) {
                  var color = this.board_renderer.game_snake(snake.board_id).color;
 
-                 var body_points = [];
-                 var body_particle_i = 0;
                  var body = snake.body;
 
                  // body
                  if( !material ) {
                      material = particleMaterial(color, 32, 32);
                  }
-
-                 for(var body_i=0; body_i<snake.body.length-1; body_i++) {
-                     var pt0 = this.board_renderer.board_point(body[body_i][0], body[body_i][1], this.board_renderer.cell_width);
-                     var pt1 = this.board_renderer.board_point(body[body_i+1][0], body[body_i+1][1], this.board_renderer.cell_width);
-                     var NSUBS = 5;
-                     for(var subi=0; subi<NSUBS; subi++) {
-                         var pt = pt0.clone().lerp(pt1, subi/NSUBS);
-                         var particle;
-                         if( body_particle_i < body_particles.length ) {
-                             particle = body_particles[body_particle_i];
-                         }
-                         else {
-                             particle = new THREE.Sprite(material);
-                             body_particles.push(particle);
-                             snake_group.add(particle);
-                         }
-                         body_particle_i++;
-
-                         // taper the body
-                         var scale = 1 - (body_particle_i / (snake.body.length * NSUBS)) + 0.2;
-                         //scale = TWEEN.Easing.Quadratic.InOut(scale);
-                         particle.scale.x = particle.scale.y = scale;
-                         
-                         particle.position.copy(pt);
-                     }
+                 var body_pts = [];
+                 for(var body_i=0; body_i<body.length; body_i++) {
+                     body_pts.push(this.board_renderer.board_point(body[body_i][0], body[body_i][1], this.board_renderer.cell_width));
                  }
+                 var body_interp = new ArcInterpolator(body_pts);
+                 var NSUBS = 5;
+                 var n = (body.length * NSUBS);
+                 var body_particle_i = 0;
+                 for(var i=0; i<n; i++) {
+                     var particle;
+                     if( body_particle_i < body_particles.length ) {
+                         particle = body_particles[body_particle_i];
+                     }
+                     else {
+                         particle = new THREE.Sprite(material);
+                         body_particles.push(particle);
+                         snake_group.add(particle);
+                     }
+                     body_particle_i++;
+
+                     // taper the body
+                     var pt = body_interp.pt(i/(n-1));
+                     var scale = (1 - i/(n-1)) * 0.8 + 0.3;
+                     particle.position.copy(pt);
+                     particle.position.z *= scale;
+                     particle.scale.x = particle.scale.y = scale;
+                 }
+                 // remove any leftover body particles
+                 for(var i=body_particle_i; i<body_particles.length; i++) {
+                     var particle = body_particles[i];
+                     snake_group.remove(particle);
+                 }
+                 if( body_particle_i < body_particles.length ) {
+                     body_particles.splice(body_particle_i);
+                 }
+
                  
                  // head
                  var img = snake.img || "snake_head.png";
@@ -484,22 +503,16 @@
                              ,color: color
                      });
                  }
-                 var pt = this.board_renderer.board_point(body[0][0], body[0][1], this.board_renderer.cell_width);
+                 var HEAD_SCALE=1.5;
+                 var pt = body_particles[0].position.clone();
+                 pt.z += 0.01;
                  if( !head_particle ) {
                      head_particle = new THREE.Sprite(head_material);
-                     head_particle.scale.set(1.5, 1.5, 0);
+                     head_particle.scale.set(HEAD_SCALE, HEAD_SCALE, 0);
                      snake_group.add(head_particle);
                  }
                  head_particle.position.copy(pt);
-
-                 // remove any leftover body particles
-                 for(var i=body_particle_i; i<body_particles.length; i++) {
-                     var particle = body_particles[i];
-                     snake_group.remove(particle);
-                 }
-                 if( body_particle_i < body_particles.length ) {
-                     body_particles.splice(body_particle_i);
-                 }
+                 
              }
              
              this.explode = function() {
