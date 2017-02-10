@@ -5,7 +5,6 @@
     <title>Snakes!</title>
     <script src="https://code.jquery.com/jquery-3.1.1.js"></script>
     <script src="libs/three.js"></script>
-    <script src="libs/TrackballControls.js"></script>
     <script src="libs/stats.js"></script>
     <script src="libs/dat.gui.js"></script>
     <script src="libs/jquery-1.12.4.js"></script>
@@ -37,6 +36,7 @@
          left: 0px;
          bottom: 0px;
          width: 70%;
+         background: #222222;
      }
      
      #scene_and_hud_pane {
@@ -53,8 +53,8 @@
          position: absolute;
          top: 0px;
          left: 0px;
-         bottom: 0px;
-         right: 0px;
+         bottom: 50px;
+         right: 320px;
      }
 
      #right_pane {
@@ -104,12 +104,12 @@
 
      .snake-info-block {
          position: absolute;
-         border: 2px solid blue;
+         border: 5px solid blue;
          border-radius: 15px;
          margin-bottom: 10px;
          padding: 10px;
          background: white;
-         box-shadow: 6px 6px 6px rgba(128, 128, 128, .5);
+         box-shadow: 6px 6px 6px rgba(0, 0, 0, .5);
      }
 
      #snake-info-block-template {
@@ -148,6 +148,14 @@
          width: 64px;
          height: 64px;
      }
+
+     .ui-slider-handle {
+         border-radius: 50%;
+         background: #660000;
+         border-color: black;
+         border-width: 2px;
+     }
+     
     </style>
   </head>
   
@@ -155,43 +163,42 @@
     <div id="main_pane">
       <div id="board_pane">
         <div id="scene_and_hud_pane">
+          
           <div id="scene_pane"></div>
 
-          <div id="hud_pane">
-            <div id="snake-info-list"></div>
-            
-            <!-- snake-info-block-template -->
-            <div class="snake-info-block snake-color" id="snake-info-block-template" v-bind:style="{background: color}">
-              <table width="100%" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td valign="top"><img class="snake-img" v-bind:src="img"/></td>
-                  <td valign="top" width="100%">
-                    <div class="snake-info-group">
-                      <div class="snake-name">{{name}}</div>
-                      <div class="snake-health-border">
-                        <div class="snake-health" v-bind:style="{width: health + '%'}"></div>
-                      </div>
-                      <div class="snake-turns-killed" v-bind:style="{visibility: turns ? 'visible' : 'hidden'}">
-                        Turns: <span class="snake-turns">{{turns}}</span>
-                        <span class="snake-killed">{{killed}}</span>
-                      </div>
-                      <div class="snake-taunt">{{taunt}}</div>
+          <div id="snake-info-list"></div>
+          
+          <!-- snake-info-block-template -->
+          <div class="snake-info-block snake-color" id="snake-info-block-template" v-bind:style="{'border-color': color}">
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td valign="top"><img class="snake-img" v-bind:src="img"/></td>
+                <td valign="top" width="100%">
+                  <div class="snake-info-group">
+                    <div class="snake-name">{{name}}</div>
+                    <div class="snake-health-border">
+                      <div class="snake-health" v-bind:style="{width: health + '%', 'background': color}"></div>
                     </div>
-                  </td>
-                </tr>
-              </table>
-            </div>
-
-
-            <div id="control_panel">
-              <div id="play_controls">
-                <input type="checkbox" id="play_button" checked/><label for="play_button">Play</label>
-                <div id="play_slider" width="100%"></div>
-                <div id="game-turn"></div>
-              </div>
-            </div>
-            
+                    <div class="snake-turns-killed" v-bind:style="{visibility: turns ? 'visible' : 'hidden'}">
+                      Turns: <span class="snake-turns">{{turns}}</span>
+                      <span class="snake-killed">{{killed}}</span>
+                    </div>
+                    <div class="snake-taunt">{{taunt}}</div>
+                  </div>
+                </td>
+              </tr>
+            </table>
           </div>
+          
+          <div id="control_panel">
+            <div id="play_controls">
+              <input type="checkbox" id="play_button" checked/><label for="play_button">Play</label>
+              <div id="play_slider" width="100%"></div>
+              <div id="game-turn"></div>
+            </div>
+          </div>
+          
+          
         </div>
       </div>
       <div id="right_pane">
@@ -261,7 +268,10 @@
      var renderer;
      var camera;
      var scene;
-
+     var play_pause = 0;
+     var camera_shake = null;
+     var camera_pos = new THREE.Vector3(0, 0, 28);
+     
      function init() {
          var controls = new function() {
              this.pointLightIntensity = .6;
@@ -280,11 +290,11 @@
          var innerHeight = scene_pane.innerHeight();
 
          camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 1000);
-         camera.position.set(0, 0, 30);
+         camera.position.copy(camera_pos);
          camera.lookAt(scene.position);
 
          renderer = new THREE.WebGLRenderer();
-         renderer.setClearColor(0xffffff, 1.0);
+         renderer.setClearColor(0x222222, 1.0);
          renderer.setSize(innerWidth, innerHeight);
          //renderer.shadowMap.Enabled = true;
          renderer.domElement.style.position = 'absolute';
@@ -294,12 +304,6 @@
          renderer.domElement.style.left = 0;
          renderer.domElement.style.right = 0;
 
-         var trackballControls = new THREE.TrackballControls(camera, document.getElementById("scene_pane"));
-         trackballControls.rotateSpeed = 1.0;
-         trackballControls.zoomSpeed = 1.0;
-         trackballControls.panSpeed = 1.0;
-         trackballControls.staticMoving = true;
-         
          var spotLight = new THREE.SpotLight(0xffffff);
          spotLight.position.set(-20, 30, 10);
          spotLight.castShadow = true;
@@ -316,15 +320,19 @@
          var BOARD_WIDTH = 20;
          var BOARD_HEIGHT = 20;  
 
-         var board_geometry = new THREE.PlaneBufferGeometry(BOARD_WIDTH, BOARD_HEIGHT, 32);
-         var board_material = new THREE.MeshLambertMaterial({color: 0xcccccc});
-         var board = new THREE.Mesh(board_geometry, board_material);
-         //board.receiveShadow = true;
-         scene.add(board);
-
          var snake_group = new THREE.Group();
-         board.add(snake_group);
+         scene.add(snake_group);
 
+         function hex2rgba(hex,opacity){
+             hex = hex.replace('#','');
+             r = parseInt(hex.substring(0,2), 16);
+             g = parseInt(hex.substring(2,4), 16);
+             b = parseInt(hex.substring(4,6), 16);
+
+             result = 'rgba('+r+','+g+','+b+','+opacity/100+')';
+             return result;
+         }
+         
          // https://github.com/mrdoob/three.js/blob/master/examples/canvas_particles_sprites.html
          function particleMaterial(color, width, height) {
              var canvas = document.createElement('canvas');
@@ -332,16 +340,17 @@
              canvas.height = height;
              var context = canvas.getContext('2d');
              var gradient = context.createRadialGradient(width/2, height/2, 0, width/2, height/2, width/2);
-             gradient.addColorStop(0, color);
-             gradient.addColorStop(0.8, color);
-             gradient.addColorStop(0.9, 'rgba(0,0,0,1)');
-             gradient.addColorStop(1, 'rgba(0,0,0,0)');
+             gradient.addColorStop(0.0, color);
+             gradient.addColorStop(0.6, color);
+             gradient.addColorStop(0.95, '#000000');
+             gradient.addColorStop(1, hex2rgba('#000000', 0));
              context.fillStyle = gradient;
              context.fillRect( 0, 0, canvas.width, canvas.height );
              
              return new THREE.SpriteMaterial({
                  map: new THREE.CanvasTexture(canvas)
                      //,blending: THREE.AdditiveBlending
+                 ,depthTest: false
              });
          }
 
@@ -361,25 +370,90 @@
                  ,blending: THREE.AdditiveBlending
              });
          }
+
+         function ArcInterpolator(pts) {
+             var self = this;
+             var interp_funcs = []
+
+             function interp_arc(pt0, pt1, pt2) {
+                 var c = pt0.clone().add(pt2).multiplyScalar(0.5);
+                 var m0 = pt0.clone().add(pt1).multiplyScalar(0.5);
+                 var m1 = pt1.clone().add(pt2).multiplyScalar(0.5);
+                 if( c.distanceTo(pt1) < eps ) {
+                     return function(t) {
+                         return m0.clone().lerp(t, m1);
+                     }
+                 }
+                 else {
+                     m1.sub(c);
+                     m2.sub(c);
+                     var angle = m1.angleTo(m2);
+                     var cross = m1.cross(m2);
+                     return function(t) {
+                         m1.clone().applyAxisAngle(t*angle, cross).add(c);
+                     }
+                 }
+             }
+             
+             for(var i=1; i+1<pts.length; i++) {
+                 interp_funcs.push(interp_arc(
+                     pts[i-1],
+                     pts[i],
+                     pts[i+1]
+                 ));
+             }
+             
+             var m0;
+             var m1;
+             if( pts.length > 1 ) {
+                 m0 = pts[0].clone().add(pts[1]).multiplyScalar(0.5);
+                 m1 = pts[pts.length-1].clone().add(pts[pts.length-2]).multiplyScalar(0.5);
+             }
+             this.pt = function(t) {
+                 if( pts.length < 2 ) {
+                     return pts[0];
+                 }
+
+                 t = t * (pts.length - 1);
+                 if( t < 0.5 ) {
+                     return pts[0].clone().lerp(t, m0);
+                 }
+                 else if( t < pts.length - 1 - 0.5 ) {
+                     t -= 0.5;
+                     var i = Math.floor(t);
+                     return interp_funcs[i](t - i);
+                 }
+                 else {
+                     t -= pts.length - 1;
+                     return m1.clone().lerp(t, pts[pts.length - 1]);
+                 }
+             }
+         }
          
          // render a snake as an array of particles.  Explode the snake when it dies
          function RenderSnake(board_renderer) {
              this.board_renderer = board_renderer;
              var body_particles = [];
              var material = null;
+             var head_material = null;
+             var head_particle = null;
              
              this.render = function(snake) {
-                 if( !material ) {
-                     material = particleMaterial(this.board_renderer.game_snake(snake.board_id).color, 32, 32);
-                 }
-                 
+                 var color = this.board_renderer.game_snake(snake.board_id).color;
+
                  var body_points = [];
                  var body_particle_i = 0;
                  var body = snake.body;
+
+                 // body
+                 if( !material ) {
+                     material = particleMaterial(color, 32, 32);
+                 }
+
                  for(var body_i=0; body_i<snake.body.length-1; body_i++) {
                      var pt0 = this.board_renderer.board_point(body[body_i][0], body[body_i][1], this.board_renderer.cell_width);
                      var pt1 = this.board_renderer.board_point(body[body_i+1][0], body[body_i+1][1], this.board_renderer.cell_width);
-                     var NSUBS = 3;
+                     var NSUBS = 5;
                      for(var subi=0; subi<NSUBS; subi++) {
                          var pt = pt0.clone().lerp(pt1, subi/NSUBS);
                          var particle;
@@ -392,12 +466,32 @@
                              snake_group.add(particle);
                          }
                          body_particle_i++;
-                         // TODO: taper the body by scaling it
-                         // particle.scale.x = particle.scale.y = Math.random() * 32 + 16;
+
+                         // taper the body
+                         var scale = 1 - (body_particle_i / (snake.body.length * NSUBS)) + 0.2;
+                         //scale = TWEEN.Easing.Quadratic.InOut(scale);
+                         particle.scale.x = particle.scale.y = scale;
+                         
                          particle.position.copy(pt);
                      }
                  }
                  
+                 // head
+                 var img = snake.img || "snake_head.png";
+                 if( !head_material ) {
+                     head_material = new THREE.SpriteMaterial({
+                         map: new THREE.TextureLoader().load(img)
+                             ,color: color
+                     });
+                 }
+                 var pt = this.board_renderer.board_point(body[0][0], body[0][1], this.board_renderer.cell_width);
+                 if( !head_particle ) {
+                     head_particle = new THREE.Sprite(head_material);
+                     head_particle.scale.set(1.5, 1.5, 0);
+                     snake_group.add(head_particle);
+                 }
+                 head_particle.position.copy(pt);
+
                  // remove any leftover body particles
                  for(var i=body_particle_i; i<body_particles.length; i++) {
                      var particle = body_particles[i];
@@ -410,11 +504,10 @@
              
              this.explode = function() {
                  var delay = 0;
-                 var dur = 1500;
-                 var mag = 20;
-
-                 dur = 750;
-                 mag = 5;
+                 var dur = 750;
+                 var mag = 5;
+                 
+                 // explode particles
                  var explode_material = explodeMaterial(16, 16);
                  new TWEEN.Tween(explode_material)
                           .delay(delay)
@@ -444,10 +537,36 @@
                                   })(particle))
                                   .start();
                      }
+                     delay += 1;
                  }
 
-                 // fade out body
-                 dur = 1250;
+                 // head flies into camera and fades out 
+                 if( head_particle ) {
+                     var particle = head_particle;
+                     new TWEEN.Tween(particle.position)
+                              .delay(delay)
+                              .to({x: 0,
+                                   y: 0,
+                                   z: 5}, dur)
+                              .start();
+                     new TWEEN.Tween(particle.scale)
+                              .delay(delay)
+                              .to({x: 20, y: 20}, dur)
+                              .onComplete((function(particle) {
+                                  return function() {
+                                      snake_group.remove(particle);
+                                  }
+                              })(particle))
+                              .start();
+                     new TWEEN.Tween(head_material)
+                              .delay(delay)
+                              .to({opacity: .01}, dur)
+                              .start();
+                     head_particle = null;
+                 }
+
+                // fade out body
+                 dur = 1250 + delay;
                  mag = 20;
                  new TWEEN.Tween(material)
                           .delay(delay)
@@ -466,6 +585,22 @@
                               .start();
                  }
                  body_particles = [];
+
+                 // shake the camera and pause the game
+                 play_pause++;
+                 new TWEEN.Tween({mag: 3})
+                          .to({mag: 0}, dur)
+                          .onUpdate(function() {
+                              camera_shake = new THREE.Vector3(Math.random()*this.mag,
+                                                               Math.random()*this.mag,
+                                                               0); // Math.random()*this.mag);
+                          })
+                          .onComplete(function() {
+                              play_pause--;
+                              camera_shake = null;
+                          })
+                          .start();
+                 
              }
 
              this.remove = function() {
@@ -708,7 +843,7 @@
                  scrollCollapse: true,
                  paging:         false,
                  searching:      false,
-                 order:          [[ 0, "desc" ]],
+                 order:          [[ 1, "desc" ], [0, 'desc']],
                  data:           games,
                  columns: [
                      { title: "Turns",      data: "turns", className: "dt-body-right" },
@@ -792,10 +927,9 @@
          function render() {
              var t0 = performance.now();
              var delta = clock.getDelta();
-             trackballControls.update(delta);
              TWEEN.update();
-                 
-             if( game_dirty ) {
+
+             if( game_dirty && !play_pause ) {
                  if( !game_render ) {
                      game_render = new RenderGame();
                  }
@@ -810,6 +944,12 @@
                      setTimeout(game_update_timer, next_dt);
                  }
              }
+
+             camera.position.copy(camera_pos)
+             if( camera_shake ) {
+                 camera.position.add(camera_shake);
+             }
+             
              renderer.render(scene, camera);
              $('#game-turn').text(game_turn_index);
              requestAnimationFrame(render);
