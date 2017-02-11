@@ -70,6 +70,20 @@ class Board(list):
         height = len(strs)
         return cls(width, height, val=lambda x, y: strs[y][x])
 
+    def __getitem__(self, idx):
+        try:
+            idx = self.index(*idx)
+        except TypeError:
+            pass
+        return super(Board, self).__getitem__(idx)
+
+    def __setitem__(self, idx, val):
+        try:
+            idx = self.index(*idx)
+        except TypeError:
+            pass
+        return super(Board, self).__setitem__(idx, val)
+
     def put_list(self, pos_list, cell_type):
         for pos in pos_list:
             self[pos] = cell_type
@@ -83,7 +97,10 @@ class Board(list):
 
     def coords(self, index):
         """return the x, y coordinates of index"""
-        return index % self.width, index / self.width
+        try:
+            return index % self.width, index / self.width
+        except TypeError:
+            return index
 
     def neighbours(self, pos):
         """return all (x, y, move) adjacent to index.  moves is an array of obects that define dx and dy"""

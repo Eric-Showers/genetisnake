@@ -150,7 +150,7 @@ def evolve(
         # winners for the generation
         training_log("winners generation=%s\n" % (solver.gen_count-1))
         for func in parents:
-            training_log("turns=%s func=%s\n" % (func.turns, func))
+            training_log("turns=%s func=%s\n" % (-func.err, func))
         training_log("finish generation=%s\n" % (solver.gen_count-1))
 
         # update the progress graph

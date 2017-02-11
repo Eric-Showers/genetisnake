@@ -1,2 +1,3 @@
 matplotlib
 -e git+ssh://git@github.com/noelbk/genetic.git#egg=genetic
+flask
