@@ -271,6 +271,30 @@
      var play_pause = 0;
      var camera_shake = null;
      var camera_pos = new THREE.Vector3(0, 0, 28);
+
+     // board size in renderer units
+     var SCENE_SIZE = 22;
+     var BOARD_SIZE = 20;
+     
+     function update_camera(innerWidth, innerHeight) {
+         var w = h = SCENE_SIZE;
+         if( innerWidth > innerHeight ) {
+             w *= innerWidth / innerHeight;
+         }
+         else {
+             h *= innerHeight / innerWidth;
+         }
+         if( !camera ) {
+             camera = new THREE.OrthographicCamera(-w/2, w/2, h/2, -h/2, 0.1, 100);
+         }
+         else {
+             camera.left   = -w / 2;
+             camera.right  =  w / 2;
+             camera.top    =  h / 2;
+             camera.bottom = -h / 2;
+             camera.updateProjectionMatrix();
+         }
+     }
      
      function init() {
          var controls = new function() {
@@ -289,10 +313,12 @@
          var innerWidth = scene_pane.innerWidth();
          var innerHeight = scene_pane.innerHeight();
 
-         camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 1000);
+         //camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 1000);
+         update_camera(innerWidth, innerHeight)
          camera.position.copy(camera_pos);
          camera.lookAt(scene.position);
 
+         
          renderer = new THREE.WebGLRenderer();
          renderer.setClearColor(0x222222, 1.0);
          renderer.setSize(innerWidth, innerHeight);
@@ -316,9 +342,6 @@
          // debug
          //var pointLightAxes = new THREE.AxisHelper(10);
          //pointLight.add(pointLightAxes);
-         
-         var BOARD_WIDTH = 20;
-         var BOARD_HEIGHT = 20;  
 
          var snake_group = new THREE.Group();
          scene.add(snake_group);
@@ -480,7 +503,7 @@
 
                      // taper the body
                      var pt = body_interp.pt(i/(n-1));
-                     var scale = (1 - i/(n-1)) * 0.8 + 0.3;
+                     var scale = (1 - i/(n-1)) * 0.7 + 0.3;
                      particle.position.copy(pt);
                      particle.position.z *= scale;
                      particle.scale.x = particle.scale.y = scale;
@@ -627,28 +650,30 @@
          }
 
          function RenderGame() {
-             this.board = null;
-             this.cell_width = null;
-             this.game_snakes = null;
+             var self = this;
+             self.board = null;
+             self.cell_width = null;
+             self.game_snakes = null;
 
              var render_snakes = Object();
              var snake_infos = Object();
+             var grid_mesh = null;
              var food_meshs = [];
              var food_geometry;
              var food_material;
 
              // the center point of a board cell
-             this.board_point = function(cell_x, cell_y, pt_z) {
-                 var pt_x = (cell_x + 0.5) * BOARD_WIDTH / this.board.width - BOARD_WIDTH / 2;
-                 var pt_y = BOARD_HEIGHT / 2 - (cell_y + 0.5) * BOARD_HEIGHT / this.board.height;
+             self.board_point = function(cell_x, cell_y, pt_z) {
+                 var pt_x = (cell_x + 0.5) * BOARD_SIZE / self.board.width - BOARD_SIZE / 2;
+                 var pt_y = BOARD_SIZE / 2 - (cell_y + 0.5) * BOARD_SIZE / self.board.height;
                  return new THREE.Vector3(pt_x, pt_y, pt_z);
              }
 
-             this.game_snake = function(board_id) {
-                 return this.game_snakes[board_id];
+             self.game_snake = function(board_id) {
+                 return self.game_snakes[board_id];
              }
 
-             this.layout_snake_info = function() {
+             self.layout_snake_info = function() {
                  // sort into living and dead
                  var snake_info_killed = [];
                  var snake_info_living = [];
@@ -692,21 +717,45 @@
                  }
              }
 
-             this.render = function(game_snakes, board) {
-                 this.game_snakes = game_snakes;
-                 this.board = board;
-                 this.cell_width = BOARD_WIDTH / board.width / 2 * .9;
+             self.render = function(game_snakes, board) {
+                 self.game_snakes = game_snakes;
+                 self.board = board;
+                 self.cell_width = BOARD_SIZE / board.width / 2 * .9;
 
+                 // grid
+                 if( !grid_mesh ) {
+                     var grid_material = new THREE.LineBasicMaterial({
+                         color: 0x888888,
+                         linewidth: 1
+                     });
+                     var dx = BOARD_SIZE / board.width;
+                     var x0 = -BOARD_SIZE / 2;
+                     var x1 = BOARD_SIZE / 2;
+                     var dy = BOARD_SIZE / board.width;
+                     var y0 = -BOARD_SIZE / 2;
+                     var y1 = BOARD_SIZE / 2;
+                     var grid_geometry = new THREE.Geometry();
+                     for(var x=0; x<=board.width; x++) {
+                         grid_geometry.vertices.push(new THREE.Vector3(x0 + x*dx, y0, 0),
+                                                new THREE.Vector3(x0 + x*dx, y1, 0));
+                     }
+                     for(var y=0; y<=board.height; y++) {
+                         grid_geometry.vertices.push(new THREE.Vector3(x0, y0 + y*dy, 0),
+                                                new THREE.Vector3(x1, y0 + y*dy, 0));
+                     }
+                     grid_mesh = new THREE.LineSegments(grid_geometry, grid_material);
+                     snake_group.add(grid_mesh);
+                 }
+                 
+                 // food!
                  if( food_meshs.length > 0 ) {
                      for(var i=food_meshs.length-1; i>=0; i--) {
                          snake_group.remove(food_meshs[i]);
                      }
                      food_meshs = [];
                  }
-                 
-                 // food!
                  if( !food_geometry ) {
-                     food_geometry = new THREE.SphereBufferGeometry(this.cell_width, 8, 8);
+                     food_geometry = new THREE.SphereBufferGeometry(self.cell_width, 8, 8);
                  }
                  if( !food_material ) {
                      food_material = new THREE.MeshLambertMaterial({color: 0xffff00});
@@ -714,7 +763,7 @@
                  for(var food_i=0; food_i<board.food.length; food_i++) {
                      var food = board.food[food_i];
                      var food_mesh = new THREE.Mesh(food_geometry, food_material);
-                     food_mesh.position.copy(this.board_point(food[0], food[1], this.cell_width));
+                     food_mesh.position.copy(self.board_point(food[0], food[1], self.cell_width));
                      snake_group.add(food_mesh);
                      food_meshs.push(food_mesh);
                  }
@@ -748,7 +797,7 @@
                      var snake = board.snakes[snake_i];
                      var render_snake = render_snakes[snake.board_id];
                      if( !render_snake ) {
-                         render_snake = new RenderSnake(this);
+                         render_snake = new RenderSnake(self);
                          render_snakes[snake.board_id] = render_snake;
                      }
                      render_snake.render(snake);
@@ -791,17 +840,16 @@
                  
                  // re-layout snake_infos
                  if( snake_info_layout ) {
-                     this.layout_snake_info();
+                     self.layout_snake_info();
                  }
              }
 
-             this.resize = function () {
-                 this.layout_snake_info();
+             self.resize = function () {
+                 self.layout_snake_info();
              }
-
          }
          
-         var GAME_FPS = 25;
+         var GAME_FPS = 10;
          var game_list_index = -1;
          var game_dirty = false;
          var game_turn_index = -1;
@@ -984,11 +1032,10 @@
 
              if( camera && renderer ) {
                  var scene_pane = $("#scene_pane");
-                 var w = scene_pane.innerWidth();
-                 var h = scene_pane.innerHeight();
-                 camera.aspect = w / h;
-                 camera.updateProjectionMatrix();
-                 renderer.setSize(w, h);
+                 var innerWidth = scene_pane.innerWidth();
+                 var innerHeight = scene_pane.innerHeight();
+                 renderer.setSize(innerWidth, innerHeight);
+                 update_camera(innerWidth, innerHeight);
              }
 
              if( game_render ) {
