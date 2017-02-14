@@ -7,3 +7,8 @@ dist/
 *.egg-info
 .eggs/
 env/
+*.out
+*.out.*
+training*/
+keepers/
+__pycache__/
