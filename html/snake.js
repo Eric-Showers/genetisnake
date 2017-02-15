@@ -53,6 +53,18 @@
         init(data);
     }
 
+    function getRealCssColor(el, css_prop) {
+        if( css_prop == undefined ) {
+            'background-color'
+        }
+        return el.parents().filter(function() {
+            var color = $(this).css(css_prop);
+            if(color != 'transparent' && color != 'rgba(0, 0, 0, 0)' && color != undefined) {
+                return color;
+            }
+        }).css(css_prop);
+    }
+    
     function stringToColor(str) {
         // when you can't pick a color, hash a string
         var hash = 0;
@@ -503,13 +515,20 @@
             // killed snakes go from bottom to top
             snake_info_killed.sort(function(a, b) { return a.data.turns - b.data.turns });
             var y = 0;
+            function div_width(container, div) {
+                return container.innerWidth()
+                    - parseFloat(div.css('padding-left')) - parseFloat(div.css('padding-right'))
+                    - parseFloat(div.css('border-left')) - parseFloat(div.css('border-right'))
+                    - parseFloat(div.css('margin-left')) - parseFloat(div.css('margin-right'))
+                ;
+            }
             for(var i=0; i<snake_info_killed.length; i++) {
                 var div = snake_info_killed[i].div();
                 var height = div.outerHeight(true);
                 y += height;
                 var top = pos.bottom - y;
-                var width = container.innerWidth() - parseFloat(div.css('padding-left')) - parseFloat(div.css('padding-right'));
-                div.animate({top: top, left: left, width: width}, 500);
+                var width = div_width(container, div);
+                div.animate({top: top, left: left, width: width}, 750);
             }
             
             // living snakes go from top to bottom
@@ -519,9 +538,9 @@
                 var div = snake_info_living[i].div();
                 var height = div.outerHeight(true);
                 var top = pos.top + y;
+                var width = div_width(container, div);
                 y += height;
-                var width = container.innerWidth() - parseFloat(div.css('padding-left')) - parseFloat(div.css('padding-right'));
-                div.animate({top: top, left: left, width: width}, 500);
+                div.animate({top: top, left: left, width: width}, 750);
             }
         }
 
@@ -738,7 +757,7 @@
             requestAnimationFrame(render);
         }
         
-        function resize() {
+        self.resize = function() {
             if( camera && renderer ) {
                 var innerWidth = self.board_div.innerWidth();
                 var innerHeight = self.board_div.innerHeight();
@@ -784,7 +803,7 @@
             camera.lookAt(scene.position);
             
             renderer = new THREE.WebGLRenderer();
-            renderer.setClearColor(0x222222, 1.0);
+            renderer.setClearColor(getRealCssColor(self.board_div, "background-color"), 1.0);
             renderer.setSize(innerWidth, innerHeight);
             renderer.domElement.style.position = 'absolute';
             renderer.domElement.style.zIndex = 0;
@@ -798,7 +817,7 @@
             scene.add(self.board_node);
             board_renderer = new SnakeBoardRenderer(self);
             
-            resize();
+            self.resize();
             render();
         }
 

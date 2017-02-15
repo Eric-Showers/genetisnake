@@ -14,7 +14,7 @@
      body {
          margin: 0px;
          overflow: hidden;
-         background: #222222;
+         background: #333333;
      }
      
      #snake-board {
@@ -39,9 +39,12 @@
          border: 5px solid blue;
          border-radius: 15px;
          margin-bottom: 10px;
-         padding: 10px;
+         padding: 5px;
          background: white;
          box-shadow: 6px 6px 6px rgba(0, 0, 0, .5);
+         width: 300px;
+         right: 10px;
+         top: 10px;
      }
 
      #snake-info-template {
@@ -112,8 +115,10 @@
     </div>
 
     <script>
+     var game_renderer;
+     
      function init() {
-         var game_renderer = new BattleSnakes.GameRenderer("#snake-board", "#snake-info-list");
+         game_renderer = new BattleSnakes.GameRenderer("#snake-board", "#snake-info-list");
 
          var game_data;
          var game_turn_data;
@@ -169,6 +174,14 @@
          load_game("game.json");
      }
      window.onload = init;
+
+     function resize() {
+         if( game_renderer ) {
+             game_renderer.resize();
+         }
+     }
+     window.addEventListener('resize', resize, false);
+     
     </script>
   </body>
 </html>
