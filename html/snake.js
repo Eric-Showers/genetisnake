@@ -278,8 +278,9 @@
             var img = snake.img || SNAKE_HEAD_URL;
             if( !head_material ) {
                 // TODO - reload material if head changes
+                THREE.ImageUtils.crossOrigin = '';
                 head_material = new THREE.SpriteMaterial({
-                    map: new THREE.TextureLoader().load(img)
+                    map: THREE.ImageUtils.loadTexture(img); // new THREE.TextureLoader().load(img)
                     ,color: color
                 });
             }
