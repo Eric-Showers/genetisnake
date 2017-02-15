@@ -1,6 +1,7 @@
 ;(function(window) {
-    var SNAKE_HEAD_URL_DEFAULT = "snake_head.png";
-    
+    var SNAKE_HEAD_URL = "snake_head.png";
+    var FOOD_URL = "food.png"
+
     function SnakeInfoDiv(div_id, data) {
         // render snake info into a div using Vue
         var self = this;
@@ -17,14 +18,16 @@
                 'taunt': null,
                 'health': null,
                 'color': null,
-                'img': SNAKE_HEAD_URL_DEFAULT,
+                'img': SNAKE_HEAD_URL,
                 'killed': null,
                 'turns': null
-            }             
+            }
+
             vue = new Vue({
                 el: '#' + self.div_id,
                 data: self.data
             });
+
             if( data ) {
                 self.set_data(data);
             }
@@ -37,9 +40,9 @@
             }
             return $(selector);
         }
-        
+
         self.set_data = function(data) {
-            for( key in self.data ) {
+            for(var key in self.data ) {
                 if( key in data ) {
                     self.data[key] = data[key];
                 }
@@ -64,7 +67,7 @@
             }
         }).css(css_prop);
     }
-    
+
     function stringToColor(str) {
         // when you can't pick a color, hash a string
         var hash = 0;
@@ -82,16 +85,16 @@
     function hex2rgba(hex, opacity) {
         // utility to make hex color transparent
         hex = hex.replace('#','');
-        r = parseInt(hex.substring(0,2), 16);
-        g = parseInt(hex.substring(2,4), 16);
-        b = parseInt(hex.substring(4,6), 16);
+        var r = parseInt(hex.substring(0,2), 16);
+        var g = parseInt(hex.substring(2,4), 16);
+        var b = parseInt(hex.substring(4,6), 16);
 
-        result = 'rgba('+r+','+g+','+b+','+opacity/100+')';
+        var result = 'rgba('+r+','+g+','+b+','+opacity/100+')';
         return result;
     }
 
     function interpolateWithArcs(pts) {
-        /* 
+        /*
            return a function(t) that interpolates pts with straight lines and arcs, 0<=t<=1
         */
         function interp_arc(pt0, pt1, pt2) {
@@ -122,18 +125,18 @@
                 if( err > Number.EPSILON ) {
                     console.log("ERROR: m0=" + m0 + " can't rotate to m1=" + m1 + " angle=" + angle + " error=" + err);
                 }
-                
+
                 return function(t) {
                     return m0.clone().applyAxisAngle(cross, t*angle).add(c);
                 }
             }
         }
-        
+
         if( pts.length < 2 ) {
             var f = function(t) { return pts[0]; }
             return f;
         }
-        
+
         var interp_funcs = []
         for(var i=1; i+1<pts.length; i++) {
             // make interpolating functions for 0.5 <= t * N < N-0.5
@@ -143,7 +146,7 @@
                 pts[i+1]
             ));
         }
-        
+
         return function(t) {
             t = t * (pts.length - 1);
             if( t < 0.5 ) {
@@ -175,7 +178,7 @@
         gradient.addColorStop(1, hex2rgba('#000000', 0));
         context.fillStyle = gradient;
         context.fillRect( 0, 0, canvas.width, canvas.height );
-        
+
         return new THREE.SpriteMaterial({
             map: new THREE.CanvasTexture(canvas)
         });
@@ -217,15 +220,15 @@
     function SnakeRenderer(board_renderer) {
         var self = this;
         self.board_renderer = board_renderer;
-        
+
         var body_particles = [];
         var body_material = null;
         var head_material = null;
         var head_particle = null;
-        
+
         self.render = function(snake) {
             var color = snake.color || stringToColor(snake.name);
-            var body = snake.body;
+            var body = snake.body || snake.coords;
 
             // body
             if( !body_material ) {
@@ -272,7 +275,7 @@
             }
 
             // head
-            var img = snake.img || "snake_head.png";
+            var img = snake.img || SNAKE_HEAD_URL;
             if( !head_material ) {
                 // TODO - reload material if head changes
                 head_material = new THREE.SpriteMaterial({
@@ -290,12 +293,12 @@
             }
             head_particle.position.copy(pt);
         }
-        
+
         self.explode = function() {
             var delay = 0;
             var dur = 750;
             var mag = 5;
-            
+
             // explode particles
             var explode_material = explodeMaterial(16, 16);
             new TWEEN.Tween(explode_material)
@@ -329,7 +332,7 @@
                 delay += 1;
             }
 
-            // head flies into camera and fades out 
+            // head flies into camera and fades out
             if( head_particle ) {
                 var particle = head_particle;
                 new TWEEN.Tween(particle.position)
@@ -392,7 +395,7 @@
         var self = this;
 
         var material = new THREE.SpriteMaterial({
-            map: new THREE.TextureLoader().load("food.png")
+            map: new THREE.TextureLoader().load(FOOD_URL)
         });
         var sprite = new THREE.Sprite(material);
         board_renderer.board_node.add(sprite);
@@ -419,7 +422,7 @@
                          y: p0.y + (Math.random() - 0.5) * mag,
                          z: p0.z + (Math.random()*mag/2)}, dur)
                     .start();
-                
+
                 // particle expands
                 new TWEEN.Tween(particle.scale)
                     .delay(delay)
@@ -452,7 +455,7 @@
                     board_renderer.board_node.remove(sprite);
                 })
                 .start();
-            
+
             // fade out food
             new TWEEN.Tween(material)
                 .delay(delay)
@@ -467,9 +470,9 @@
         self.dispose = function() {
             material.map.dispose();
         }
-        
+
     }
-    
+
     function SnakeBoardRenderer(game_renderer) {
         // render the board, snakes, and snake_infos
         var self = this;
@@ -477,13 +480,13 @@
         self.board_node = game_renderer.board_node; // the THREE.Object that I should attach child objects to
         self.board_size = game_renderer.board_size; // board size in scene units
         self.snake_info_div = game_renderer.snake_info_div;
-        
+
         self.board = null;
         self.cell_width = null;
-        
+
         var food_renderers = {};  // map from food_key() -> FoodRenderer
-        var snake_renderers = {}; // map from board_id -> SnakeRenderer
-        var snake_infos = {};     // map from board_id -> SnakeInfoDiv
+        var snake_renderers = {}; // map from id -> SnakeRenderer
+        var snake_infos = {};     // map from id -> SnakeInfoDiv
         var grid_mesh = null;
 
         // the center point of a board cell
@@ -497,8 +500,8 @@
             // sort into living and dead
             var snake_info_killed = [];
             var snake_info_living = [];
-            for(var board_id in snake_infos) {
-                var snake_info = snake_infos[board_id];
+            for(var id in snake_infos) {
+                var snake_info = snake_infos[id];
                 if( snake_info.killed ) {
                     snake_info_killed.push(snake_info);
                 }
@@ -509,9 +512,12 @@
 
             var container = $('#snake-info-list');
             var pos = container.position();
+            if( !pos ) {
+                return;
+            }
             pos.bottom = pos.top + container.innerHeight();
             var left = pos.left;
-            
+
             // killed snakes go from bottom to top
             snake_info_killed.sort(function(a, b) { return a.data.turns - b.data.turns });
             var y = 0;
@@ -522,6 +528,7 @@
                     - parseFloat(div.css('margin-left')) - parseFloat(div.css('margin-right'))
                 ;
             }
+
             for(var i=0; i<snake_info_killed.length; i++) {
                 var div = snake_info_killed[i].div();
                 var height = div.outerHeight(true);
@@ -530,7 +537,7 @@
                 var width = div_width(container, div);
                 div.animate({top: top, left: left, width: width}, 750);
             }
-            
+
             // living snakes go from top to bottom
             snake_info_living.sort(function(a, b) { return a.order - b.order });
             y = 0;
@@ -544,16 +551,15 @@
             }
         }
 
-        function get_snake_info(board_id, snake_i) {
-            var snake_info = snake_infos[board_id];
+        function get_snake_info(id, snake_i) {
+            var snake_info = snake_infos[id];
             if( !snake_info ) {
-                var snake_info_id = "snake-info-" + board_id;
+                var snake_info_id = "snake-info-" + id;
                 snake_info = new SnakeInfoDiv(snake_info_id);
                 if( snake_i != null ) {
                     snake_info.order = snake_i;
                 }
-                snake_infos[board_id] = snake_info;
-                snake_info_layout = true;
+                snake_infos[id] = snake_info;
             }
             return snake_info;
         }
@@ -587,7 +593,7 @@
                     grid_geometry.vertices.push(new THREE.Vector3(x0, y0 + y*dy, 0),
                                                 new THREE.Vector3(x1, y0 + y*dy, 0));
                 }
-                grid_mesh = new THREE.LineSegments(grid_geometry, grid_material);
+                var grid_mesh = new THREE.LineSegments(grid_geometry, grid_material);
                 self.board_node.add(grid_mesh);
 
                 var grid2_material = new THREE.LineBasicMaterial({
@@ -601,10 +607,10 @@
                     ,new THREE.Vector3(x1, y1, 0)
                     ,new THREE.Vector3(x1, y0, 0)
                     ,new THREE.Vector3(x0, y0, 0));
-                grid2_mesh = new THREE.Line(grid2_geometry, grid2_material);
+                var grid2_mesh = new THREE.Line(grid2_geometry, grid2_material);
                 self.board_node.add(grid2_mesh);
             }
-            
+
             // food
             for(k in food_renderers) {
                 food_renderers[k].keep = false;
@@ -628,32 +634,36 @@
             }
 
             // mark all snakes as killed
-            for(var board_id in snake_renderers) {
-                if( snake_renderers[board_id] ) {
-                    snake_renderers[board_id].killed = true;
+            for(var id in snake_renderers) {
+                if( snake_renderers[id] ) {
+                    snake_renderers[id].killed = true;
                 }
             }
 
             // re-layout the snake_info blocks
             var snake_info_layout = false;
-            
+
             // render living snakes
             for(var snake_i=0; snake_i<board.snakes.length; snake_i++) {
                 var snake = board.snakes[snake_i];
-                if( !("color" in snake) ) {
-                    snake.color = stringToColor(snake.taunt || snake.board_id);
+                if( !("id" in snake) && snake.board_id ) {
+                    snake.id = snake.board_id;
                 }
 
-                var snake_renderer = snake_renderers[snake.board_id];
+                if( !("color" in snake) ) {
+                    snake.color = stringToColor(snake.taunt || snake.id);
+                }
+
+                var snake_renderer = snake_renderers[snake.id];
                 if( !snake_renderer ) {
                     snake_renderer = new SnakeRenderer(self);
-                    snake_renderers[snake.board_id] = snake_renderer;
+                    snake_renderers[snake.id] = snake_renderer;
                     snake_info_layout = true;
                 }
                 snake_renderer.render(snake);
                 snake_renderer.killed = false;
 
-                var snake_info = get_snake_info(snake.board_id, snake_i);
+                var snake_info = get_snake_info(snake.id, snake_i);
                 if( snake_info.killed ) {
                     snake_info.killed = false;
                     snake_info_layout = true;
@@ -662,31 +672,33 @@
             }
 
             // update killed snake_infos
-            for(var snake_i=0; snake_i<board.killed.length; snake_i++) {
-                var snake = board.killed[snake_i];
-                var snake_info = get_snake_info(snake.board_id);
-                if( !snake_info.killed ) {
-                    snake_info.killed = true;
-                    snake_info_layout = true;
-                    snake_info.set_data(snake);
+            if( board.killed ) {
+                for(var snake_i=0; snake_i<board.killed.length; snake_i++) {
+                    var snake = board.killed[snake_i];
+                    var snake_info = get_snake_info(snake.id);
+                    if( !snake_info.killed ) {
+                        snake_info.killed = true;
+                        snake_info_layout = true;
+                        snake_info.set_data(snake);
+                    }
                 }
             }
-            
+
             // explode killed snakes
-            for(var board_id in snake_renderers) {
-                var snake_renderer = snake_renderers[board_id];
+            for(var id in snake_renderers) {
+                var snake_renderer = snake_renderers[id];
                 if( snake_renderer.killed ) {
                     snake_renderer.explode();
-                    delete snake_renderers[board_id];
+                    delete snake_renderers[id];
 
-                    var snake_info = snake_infos[board_id];
+                    var snake_info = snake_infos[id];
                     if( snake_info ) {
                         snake_info.killed = true;
                         snake_info_layout = true;
                     }
                 }
             }
-            
+
             // re-layout snake_infos
             if( snake_info_layout ) {
                 layout_snake_info();
@@ -700,7 +712,7 @@
         self.shake = function(dur) {
             self.game_renderer.shake(dur);
         }
-        
+
     }
 
     function GameRenderer(board_div, info_div) {
@@ -718,15 +730,16 @@
         var camera_pos = new THREE.Vector3(0, 0, 28);
         var camera_shake = null;
         var play_pause = 0;
-        
+
         var board_renderer;
-        
+
         // board size in renderer units
         self.board_size = 20;
         self.scene_size = self.board_size * 1.05;
 
         function update_camera(innerWidth, innerHeight) {
-            var w = h = self.scene_size;
+            var w, h;
+            w = h = self.scene_size;
             if( innerWidth > innerHeight ) {
                 w *= innerWidth / innerHeight;
             }
@@ -753,10 +766,10 @@
                 camera.position.add(camera_shake);
             }
             renderer.render(scene, camera);
-            
+
             requestAnimationFrame(render);
         }
-        
+
         self.resize = function() {
             if( camera && renderer ) {
                 var innerWidth = self.board_div.innerWidth();
@@ -771,7 +784,9 @@
         }
 
         self.render = function(board) {
-            board_renderer.render(board);
+            if( board_renderer ) {
+                board_renderer.render(board);
+            }
         }
 
         self.shake = function(dur) {
@@ -788,10 +803,10 @@
                 })
                 .start();
         }
-            
+
         function init() {
             // make divs: snake-board and snake-info
-            
+
             clock = new THREE.Clock();
             scene = new THREE.Scene();
 
@@ -801,7 +816,7 @@
             update_camera(innerWidth, innerHeight)
             camera.position.copy(camera_pos);
             camera.lookAt(scene.position);
-            
+
             renderer = new THREE.WebGLRenderer();
             renderer.setClearColor(getRealCssColor(self.board_div, "background-color"), 1.0);
             renderer.setSize(innerWidth, innerHeight);
@@ -816,7 +831,7 @@
             self.board_node = new THREE.Group();
             scene.add(self.board_node);
             board_renderer = new SnakeBoardRenderer(self);
-            
+
             self.resize();
             render();
         }
@@ -824,8 +839,10 @@
         init();
     }
 
+
     if( !window.BattleSnakes ) {
         window.BattleSnakes = {};
     }
     window.BattleSnakes.GameRenderer = GameRenderer;
+
 })(window);
