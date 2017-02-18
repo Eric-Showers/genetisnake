@@ -193,9 +193,9 @@
         };
     }
 
-    var img_loader = new THREE.TextureLoader();
     var imgTexture = memoize(function(url) {
-        var tex = img_loader.load(url);
+        THREE.ImageUtils.crossOrigin = '';
+        var tex = THREE.ImageUtils.loadTexture(url);
         tex.minFilter = THREE.LinearFilter;
         return tex;
     });
