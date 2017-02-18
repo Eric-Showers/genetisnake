@@ -104,7 +104,8 @@ def move():
 
 @application.route('/<path:path>')
 def send_html(path):
-    return send_from_directory('html', path)
+    LOG.debug("send_from_directory path=%s cwd=%s", path, os.getcwd())
+    return send_from_directory(os.path.join(os.getcwd(), 'html'), path)
 
 @click.command()
 @click.option('--host', '-h', default='0.0.0.0')
