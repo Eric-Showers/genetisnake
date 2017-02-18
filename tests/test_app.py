@@ -4,7 +4,7 @@ import genetisnake.app
 
 @pytest.fixture
 def app():
-    return genetisnake.app.app
+    return genetisnake.app.application
 
 def test_start(client):
     data = {"width":20,"height":20,"game_id":"example-game-id"}
