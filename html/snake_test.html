@@ -9,7 +9,11 @@
     <script src="libs/jquery-1.12.4.js"></script>
     <script src="libs/Tween.js"></script>
     <script src="libs/vue.min.js"></script>
+    <script src="libs/howler.js"></script>
     <script src="snake.js"></script>
+    <script src="libs/jquery-ui-1.12.1.custom/jquery-ui.js"></script>
+    <link href="libs/jquery-ui-1.12.1.custom/jquery-ui.css" rel="stylesheet"/>
+    
 
     <style>
      .scoreboard-flag {
@@ -22,8 +26,11 @@
          font-family: 'Montserrat', sans-serif
          margin: 0px;
          overflow: hidden;
-         background: #6a6676;
          color: white;
+     }
+
+     body, #audio-controls {
+         background: #6a6676;
      }
 
      #snake-board {
@@ -65,14 +72,6 @@
          width: 400px;
          top: 150px;
          right: 10px;
-         /*
-            border: 5px solid blue;
-            border-radius: 15px;
-            margin-bottom: 10px;
-            padding: 5px;
-            background: white;
-            box-shadow: 6px 6px 6px rgba(0, 0, 0, .5);
-          */
      }
 
      .noborder {
@@ -135,11 +134,105 @@
          height: 64px;
      }
 
+     #audio-controls-popup {
+         position: absolute;
+         bottom: 10px;
+         right: 20px;
+         width: 250px;
+         z-index: 10;
+     }
+
+     #audio-controls-popup:hover > #audio-controls {
+         top: 0px;
+     }
+     
+     #audio-controls-popup:hover > #audio-controls-popup-button {
+         opacity: 0;
+     }
+
+     #audio-controls {
+         position: relative;
+         top: 200px;
+         width: 100%;
+         height: 100%;
+         border: 1px solid black;
+         border-radius: 10px;
+         padding: 10px;
+         box-shadow: 6px 6px 6px rgba(0, 0, 0, .5);
+         transition-property: top;
+         transition-duration: 500ms;
+     }
+
+     #audio-controls-popup-button {
+         position: absolute;
+         left: 50%;
+         bottom: 0px;
+         transform: translate3d(-50%, 0, 0)
+         transition-property: opacity;
+         transition-duration: 500ms;
+     }
+     
+     .audio-horiz {
+         display: flex;
+         align-items: center;
+     }
+
+     .audio-volume {
+         flex-grow: 1;
+     }
+     
+     .audio-on {
+         width: 75px;
+         text-align: left;
+     }
+
+     .audio-on input {
+         clear: left;
+         float: left;
+     }
+
+     .ui-slider-handle {
+         visibility: visible;
+         border: 1px solid #c5c5c5;
+         background: #f6f6f6;
+         border-radius: 50%;
+     }
+
+     .ui-state-active {
+         border: none;
+         background: none;
+     }
+
+     .ui-button.ui-state-active:hover {
+         border: inherit;
+         background: inherit;
+     }
+     
+
     </style>
   </head>
 
   <body>
-    <div id="snake-board"></div>
+    
+    <div id="snake-board">
+
+      <div id="audio-controls-popup">
+        <div id="audio-controls">
+          <div class="audio-horiz">
+            <input id="effects-on" type="checkbox"><label for="effects-on" class="audio-on">Effects</label>
+            <div id="effects-volume-slider" class="audio-volume"></div>
+          </div>
+          <div class="audio-horiz">
+            <input id="music-on" type="checkbox"><label for="music-on" class="audio-on">Music</label>
+            <div id="music-volume-slider" class="audio-volume"></div>
+          </div>
+        </div>
+        <div id="audio-controls-popup-button">
+          Audio
+        </div>
+      </div>
+      
+    </div>
 
     <div id="scoreboard-panel">
 

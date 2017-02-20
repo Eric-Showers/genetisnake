@@ -3,6 +3,113 @@
     var SNAKE_HEAD_URL = "./images/snake_head_nerdy.png";
     var SNAKE_HEAD_SCALE = 1.5;
 
+    var AUDIO_URL = "./audio/"
+    var AUDIO_PLAYLISTS_URL = AUDIO_URL + "playlists.json"
+    function audio_url(url) {
+        if( url[0] == '.' ) {
+            url = AUDIO_URL + url;
+        }
+        return url;
+    }
+    
+    function audio_list(list, preload) {
+        var audios = [];
+        for(var i=0; i<list.length; i++) {
+            var play_entry = list[i];
+            var player;
+            if( preload ) {
+                player = new Howl({src: [audio_url(play_entry.url)],
+                                   format: [play_entry.format || "mp3"]});
+            }
+            audios.push({player: player, playlist: list[i]});
+        }
+        return audios;
+    }
+    
+    function choose(list) {
+        var i = Math.floor(Math.random() * list.length);
+        if( i >= list.length ) {
+            i = list.length;
+        }
+        return list[i];
+    }
+    
+    var effects_playlist = {};
+    var effects_volume = 0.5;
+    function set_effects_volume(val) {
+        effects_volume = val;
+    }
+    var effects_on = true;
+    function set_effects_on(val) {
+        effects_on = val;
+        $('#effects-on').prop('checked', effects_on);
+        $('#effects-on').button("refresh");
+    }
+    function play_effects(name) {
+        if( effects_on && effects_playlist ) {
+            var player = choose(effects_playlist[name]);
+            var volume = effects_volume * (player.playlist.volume || 1);
+            player.player.play();
+            player.player.volume(volume);
+            //console.debug("play_effects name=" + name + " volume=" + player.player.volume() + " url=" + player.playlist.url);
+        }
+    }
+
+    var music_playlist = {};
+    var music_volume = 0.2;
+    var music_theme;
+    var music_player;
+    var music_on = false;
+    function set_music_volume(val) {
+        music_volume = val;
+        if( music_player ) {
+            var volume = music_volume * (music_player.volume || 1);
+            music_player.player.volume(volume);
+        }
+    }
+    function set_music_on(val) {
+        music_on = val;
+        play_music();
+    }
+    function play_music(theme, continue_theme) {
+        if( continue_theme && theme == music_theme ) {
+            return;
+        }
+        
+        if( theme ) {
+            music_theme = theme;
+        }
+        
+        if( music_playlist && music_theme ) {
+            var old_player = music_player;
+            if( old_player && old_player.player ) {
+                old_player.player.off('end');
+                old_player.player.stop();
+            }
+            if( music_on ) {
+                music_player = choose(music_playlist[music_theme]);
+                var volume = music_volume * (music_player.volume || 1);
+                if( !music_player.player ) {
+                    music_player.player = new Howl({
+                        src: [audio_url(music_player.playlist.url)],
+                        format: [music_player.playlist.format || "mp3"],
+                        volume: volume,
+                        onend: function() {
+                            play_music(music_theme);
+                        },
+                        loaderror: function(id, msg) {
+                            console.error("play_music loaderror msg=" + msg);
+                            play_music(music_theme);
+                        }
+                    });
+                }
+                music_player.player.play();
+                music_player.player.volume(volume);
+                //console.debug("play_music theme=" + theme + " volume=" + music_player.player.volume() + " name=" + music_player.playlist.name + " url=" + music_player.playlist.url);
+            }
+        }
+    }
+    
     function SnakeInfoDiv(div_id, data) {
         // render snake info into a div using Vue
         var self = this;
@@ -331,6 +438,8 @@
             var dur = 750;
             var mag = 5;
 
+            play_effects("explode");
+            
             // explode particles
             var explode_material = explodeMaterial();
             new TWEEN.Tween(explode_material)
@@ -434,6 +543,8 @@
         sprite.position.copy(food_pt);
 
         self.explode = function() {
+            play_effects("eat");
+
             var explode_material = foodMaterial();
             var mag = 5;
             var dur = 750;
@@ -611,6 +722,18 @@
             self.board = board;
             self.cell_width = self.board_size / board.width / 2 * .9;
 
+            var music_theme;
+            if( board.turn == 0 ) {
+                music_theme = "prologue";
+            }
+            else if( board.end ) {
+                music_theme = "epilogue";
+            }
+            else {
+                music_theme = "fight";
+            }
+            play_music(music_theme, true);
+            
             if( !board_info_vue ) {
                 board_info_vue = new Vue({
                     el: '#scoreboard-game-info',
@@ -867,6 +990,48 @@
 
         function init() {
             // make divs: snake-board and snake-info
+            
+            // load audio playlists
+            $.getJSON(AUDIO_PLAYLISTS_URL)
+                .done(function(data) {
+                    for(var name in data.effects) {
+                        effects_playlist[name] = audio_list(data.effects[name], true);
+                    }
+                    for(var theme in data.music) {
+                        music_playlist[theme] = audio_list(data.music[theme], false);
+                    }
+                })
+                .fail(function(response, error) {
+                    console.error("failed to load: " + AUDIO_PLAYLISTS_URL + " error: " + error[2]);
+                });
+
+            // audio controls
+            $("#effects-on").button({
+                icons: {
+                    primary: 'ui-icon-unlocked'
+                }               
+            }).change(function() { set_effects_on($(this).is(':checked')) });
+            $('#effects-on').prop('checked', effects_on);
+            $('#effects-on').button("refresh");
+            
+            $("#effects-volume-slider").slider({
+                min: 0,
+                max: 100,
+                value: effects_volume*100,
+                slide: function(event, ui) { set_effects_volume(ui.value/100); }
+            });
+            $('#music-on').prop('checked', music_on);
+            $("#music-on").button({
+                icon: { icon: "ui-icon-gear" }
+            }).change(function(event, ui) { set_music_on($(this).is(':checked')) });
+            $("#music-volume-slider").slider({
+                min: 0,
+                max: 100,
+                value: music_volume*100,
+                slide: function(event, ui) { set_music_volume(ui.value/100); }
+            });
+            $('.ui-slider-handle').show();
+                      
 
             clock = new THREE.Clock();
             scene = new THREE.Scene();
