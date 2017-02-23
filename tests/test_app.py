@@ -12,7 +12,12 @@ def test_start(client):
                       data=json.dumps(data),
                       content_type='application/json')
     assert res.status_code == 200
-    assert set(res.json.keys()) <= set(("color", "head_url", "name", "taunt"))
+    data = res.json
+    assert set(data.keys()) <= set(("color", "head_url", "name", "taunt"))
+    assert data["head_url"].startswith('http')
+
+    res = client.get(data["head_url"])
+    assert res.status_code == 200
 
 def test_move(client):
     data = {

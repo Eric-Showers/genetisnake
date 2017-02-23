@@ -6,6 +6,7 @@ import sys
 
 from flask import Flask, jsonify, request, send_from_directory
 import click
+from urlparse import urljoin
 
 import genetic
 from genetisnake.game import Game
@@ -15,8 +16,8 @@ LOG = logging.getLogger(__name__)
 
 application = Flask(__name__)
 
-COLOR = "#FF0000"
-HEAD = "http://placecage.com/c/100/100"
+COLOR = "rgb(144,60,128)"
+HEAD = "images/snake_head_nerdy.png"
 NAME = "Genetisnake NBK"
 TAUNTS = ["taunt"]
 MOVES = "up right down left".split()
@@ -24,9 +25,10 @@ MOVES = "up right down left".split()
 @application.route('/start', methods=['POST'])
 def start():
     LOG.debug("start: request.json=%s", request.json)
+
     return jsonify({
         "color": COLOR,
-        "head_url": HEAD,
+        "head_url": urljoin(request.url, HEAD),
         "name": NAME,
         "taunt": TAUNTS[0],
         })
