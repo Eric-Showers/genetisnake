@@ -12,6 +12,7 @@ import matplotlib
 # pylint: disable=wrong-import-position
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from pathos.multiprocessing import Pool
 
 import genetic
 from .snake import GenetiSnake
@@ -28,9 +29,9 @@ def evolve(
     width=20,
     height=20,
     max_gens=None,
-    n_players=8, # players per game
+    n_players=6, # players per game
     n_games=3, # games per round
-    n_rounds=3, # number of games each player will play
+    n_rounds=5, # number of games each player will play
     ):
 
     if not root_dir:
@@ -62,129 +63,99 @@ def evolve(
 
     # graph max turns by generation
     gen_turns = []
-    
+
+    # genetic solver and initial population
     solver = genetic.GeneticSolver()
     funcs = []
     if winners:
         funcs = [genetic.FuncWithErr(solver.parsefunc(GenetiSnake.ARITY, w["func"])) for w in winners]
-    n = n_games * n_players - len(funcs)
-    if n > 0:
-        funcs += solver.population(GenetiSnake.ARITY, n )
-        
-    solver.start(maxgens=max_gens)
+    n = n_games * n_players
+    funcs = funcs[:n]
+    if n > len(funcs):
+        funcs += solver.population(GenetiSnake.ARITY, n-len(funcs))
+
+    # I need to train to beat worthy adversaries
+    extra_snakes = []
+    for funcstr in (
+        "(neg var1)",
+        "(neg var1)",
+        ):
+        snake = GenetiSnake(genetic.FuncWithErr(solver.parsefunc(GenetiSnake.ARITY, funcstr)))
+        extra_snakes.append(snake)
+    
+    solver.start(maxgens = max_gens)
     solver.gen_count = gen_start
     winners = []
     
     while not solver.converged():
+        gen_count = solver.gen_count+1
         training_log("start generation=%s rounds=%s snakes=%s\n" % (solver.gen_count, n_rounds, len(funcs)))
         
         # play n_rounds games of n_players randomly shuffled
-        snakes = []
+        snakes = {}
         for func in funcs:
             func.err = 0
             func.games = []
-            snakes.append(GenetiSnake(func))
-            
+            snake = GenetiSnake(func)
+            snake.err = 0
+            snake.games = []
+            snake.snake_id = id(snake)
+            snakes[snake.snake_id] = snake
+
         game_count = 0
+        game_infos = []
         for game_round in range(n_rounds):
-            random.shuffle(snakes)
-            for start in range(0, len(snakes), n_players):
+            # pick groups of n snakes, and add in a few greedy snakes to beat
+            snake_ids = snakes.keys()
+            random.shuffle(snakes.keys())
+            start = 0
+            while start < len(snake_ids):
+                snake_group = [snakes[snake_id] for snake_id in snake_ids[start : start + n_players]]
+                start += n_players
+
+                # add a couple of greedy snakes to the game for competition
+                snake_group += extra_snakes
+                    
                 game_count += 1
-
-                # set up a game with n_players
-                game = Game(width, height)
-                game_hdr = dict(
-                    snakes=[],
-                    )
-                
-                # write game logs to tmp files
-                game_name = "gen%03d-game%02d" % (solver.gen_count, game_count)
-                game_log_path_tmp = os.path.join(root_dir, "%s.log.tmp" % game_name)
-                game_json_path_tmp = os.path.join(root_dir, "%s.json.tmp" % game_name)
-                with open(game_log_path_tmp, 'w') as game_log, \
-                     open(game_json_path_tmp, 'w') as game_json :
-
-                    game_log.write("game start generation=%s round=%s game=%s\n" % (solver.gen_count, game_round, game_count))
-
-                    for snake in snakes[start : start + n_players]:
-                        player = game.add_snake(snake)
-                        game_log.write("game snake: %s func=%s\n" % (player, snake.move_func.func))
-                        game_hdr["snakes"].append(dict(
-                            board_id=player.board_id,
-                            func=str(snake.move_func.func),
-                            ))
-
-                    # print the json header and start a list of turns
-                    game_json.write(json.dumps(game_hdr))
-                    game_json.seek(-1, io.SEEK_CUR)
-                    game_json.write(', "turns": [\n')
-                        
-                    # play the game
-                    for _board in game.run():
-                        if game.turn_count > 0:
-                            game_json.write(",\n")
-                        game_json.write(json.dumps(game.to_dict()))
-
-                        # test: end the game when all but 1 are dead
-                        if game.snakes <= 1:
-                            game.killed += game.snakes
-                            break
-                        
-                    game_log.write("game winners generation=%s round=%s game=%s\n" % (solver.gen_count, game_round, game_count))
-                    for player in sorted(game.killed, key=lambda p: p.turns, reverse=True):
-                        game_log.write("snake: %s func=%s\n" % (player, player.snake.move_func.func))
-                    game_log.write("game finished generation=%s round=%s game=%s\n" % (solver.gen_count, game_round, game_count))
-
-                    game_json.write("\n]}\n")
-
-                    # sum up the turns each player lasted
-                    for killed_order, player in enumerate(game.killed):
-                        snake = player.snake
-                        snake.games += 1
-                        snake.turns += player.turns
-                        if not hasattr(snake, 'err'):
-                            snake.err = 0
-                        snake.err += snake.turns * killed_order
-
-                # move the tmp logs to their permanent names
-                game_name = "gen%03d-game%02d-turns%05d" % (solver.gen_count, game_count, game.turn_count)
-                game_log_path = os.path.join(root_dir, "%s.log" % game_name)
-                assert RE_GAME.match(os.path.basename(game_log_path))
-                os.rename(game_log_path_tmp, game_log_path)
-                game_json_path_rel = "%s.json" % game_name
-                game_json_path = os.path.join(root_dir, game_json_path_rel)
-                assert RE_GAME.match(os.path.basename(game_json_path))
-                os.rename(game_json_path_tmp, game_json_path)
-
-                # keep track of the games each player played in
-                for killed_order, player in enumerate(game.killed):
-                    func = player.snake.move_func
-                    if not hasattr(func, "games"):
-                        func.games = []
-                    func.games.append(dict(
-                        game_turns=game.turn_count,
-                        player_turns=player.turns,
-                        killed_order=killed_order+1,
-                        path=os.path.basename(game_json_path)))
-                
-                # update list of games
-                games.append(dict(
-                    path=game_json_path_rel,
-                    generation=solver.gen_count,
-                    game=game_count,
-                    round=game_round,
-                    turns=game.turn_count,
-                    func_size=game.killed[-1].snake.move_func.func.child_count(),
-                    #func=str(game.killed[-1].snake.move_func.func),
+                game_infos.append(dict(
+                    root_dir = root_dir,
+                    width = width,
+                    height = height,
+                    game_count = game_count,
+                    game_round = game_round,
+                    gen_count = gen_count,
+                    snakes = snake_group,
                     ))
+            
+        pool = Pool()
+        for result in pool.map(play_game, game_infos):
+            for snake_id, snake_result in result['snakes'].items():
+                snake = snakes[snake_id]
+                # TODO - merge results into snake
+                snake.games.append(snake_result['game'])
+                snake.turns += snake_result['turns']
+                snake.err += snake_result['err']
+                
+            # update list of games
+            games.append(dict(
+                path = result['game_json'],
+                generation = result['gen_count'],
+                game = result['game_count'],
+                round = result['game_round'],
+                turns = result['turn_count'],
+                func_size = result['func_size'], # game.killed[-1].snake.move_func.func.child_count(),
+                func = result['func'], # func=str(game.killed[-1].snake.move_func.func),
+                ))
 
-        # Want to maximize turns, so minimize -turns
-        for snake in snakes:
+        # Evaluate snakes: miximize turns and killed_order
+        for snake in snakes.values():
             func = snake.move_func
             func.err = -snake.err
             func.turns = snake.turns
-            assert snake.games == n_rounds
+            func.games = snake.games
+            assert len(func.games) == n_rounds
 
+        # the solver makes the next generation based on func.err
         parents, funcs = solver.generation(funcs)
 
         # winners for the generation
@@ -252,6 +223,101 @@ def evolve(
             json.dump(winners, f, sort_keys=True, indent=2)
         os.rename(winners_path_t, winners_path)
 
+def play_game(game_info):
+    # set up a game with n_players
+    game = Game(game_info['width'], game_info['height'])
+    game_hdr = dict(
+        snakes=[],
+        )
+
+    gen_count = game_info['gen_count']
+    game_round = game_info['game_round']
+    game_count = game_info['game_count']
+    root_dir = game_info['root_dir']
+    
+    # write game logs to tmp files
+    game_name = "gen%03d-game%02d" % (gen_count, game_count)
+    game_log_path_tmp = os.path.join(root_dir, "%s.log.tmp" % game_name)
+    game_json_path_tmp = os.path.join(root_dir, "%s.json.tmp" % game_name)
+    with open(game_log_path_tmp, 'w') as game_log, \
+         open(game_json_path_tmp, 'w') as game_json :
+
+        game_log.write("game start generation=%s round=%s game=%s pid=%s\n" % (gen_count, game_round, game_count, os.getpid()))
+
+        for snake in game_info['snakes']:
+            player = game.add_snake(snake)
+            game_log.write("game snake: %s func=%s\n" % (player, snake.move_func.func))
+            game_hdr["snakes"].append(dict(
+                board_id=player.board_id,
+                func=str(snake.move_func.func),
+                ))
+
+        # print the json header and start a list of turns
+        game_json.write(json.dumps(game_hdr))
+        game_json.seek(-1, io.SEEK_CUR)
+        game_json.write(', "turns": [\n')
+
+        # play the game
+        for _board in game.run():
+            if game.turn_count > 0:
+                game_json.write(",\n")
+            game_json.write(json.dumps(game.to_dict()))
+            
+            # end the game when all but 1 are dead
+            if len(game.snakes) <= 1:
+                break
+
+        game.killed += game.snakes
+        
+        game_log.write("game winners generation=%s round=%s game=%s\n" % (gen_count, game_round, game_count))
+        for player in sorted(game.killed, key=lambda p: p.turns, reverse=True):
+            game_log.write("snake: %s func=%s\n" % (player, player.snake.move_func.func))
+        game_log.write("game finished generation=%s round=%s game=%s\n" % (gen_count, game_round, game_count))
+
+        game_json.write("\n]}\n")
+
+    # move the tmp logs to their permanent names
+    game_name = "gen%03d-game%02d-turns%05d" % (gen_count, game_count, game.turn_count)
+    game_log_path = os.path.join(root_dir, "%s.log" % game_name)
+    assert RE_GAME.match(os.path.basename(game_log_path))
+    os.rename(game_log_path_tmp, game_log_path)
+    game_json_path_rel = "%s.json" % game_name
+    game_json_path = os.path.join(root_dir, game_json_path_rel)
+    assert RE_GAME.match(os.path.basename(game_json_path))
+    os.rename(game_json_path_tmp, game_json_path)
+
+    # sum up the turns each player lasted
+    result_snakes = {}
+    for killed_order, player in enumerate(game.killed):
+        snake_id = getattr(player.snake, 'snake_id', None)
+        if not snake_id:
+            continue
+        
+        result_snakes[snake_id] = dict(
+            game = dict(
+                game_turns = game.turn_count,
+                player_turns = player.turns,
+                killed_order = killed_order+1,
+                path=os.path.basename(game_json_path),
+            ),
+            turns = player.turns,
+            err = player.turns * killed_order,
+            )
+            
+    # return a map of snake_id => game stats
+    result = dict(
+        game_json = game_json_path_rel,
+        gen_count = gen_count,
+        game_count = game_count,
+        game_round = game_round,
+        turn_count = game.turn_count,
+        func_size = game.killed[-1].snake.move_func.func.child_count(),
+        func = str(game.killed[-1].snake.move_func.func),
+        snakes = result_snakes,
+        )
+    return result
+            
+    
 
 def mkdir_p(path):
     try:
@@ -266,9 +332,9 @@ def mkdir_p(path):
 @click.option('--root_dir', '-r', default='')
 @click.option('--width', '-w', default=20)
 @click.option('--height', '-h', default=20)
-@click.option('--players', '-p', default=8)
+@click.option('--players', '-p', default=6)
 @click.option('--games', '-g', default=3)
-@click.option('--rounds', '-n', default=3)
+@click.option('--rounds', '-n', default=5)
 @click.option('--max_gens', default=0)
 def cli(root_dir, width, height, players, games, rounds, max_gens):
     evolve(

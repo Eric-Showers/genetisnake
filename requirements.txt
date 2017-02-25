@@ -2,3 +2,4 @@ matplotlib
 -e git+http://git@github.com/noelbk/genetic.git#egg=genetic
 flask
 uwsgi
+pathos
