@@ -829,13 +829,6 @@
             // render living snakes
             for(var snake_i=0; snake_i<board.snakes.length; snake_i++) {
                 var snake = board.snakes[snake_i];
-                if( !snake.color ) {
-                    snake.color = stringToColor(snake.id);
-                }
-                if( !snake.img ) {
-                    snake.img = SNAKE_HEAD_URL;
-                }
-
                 var snake_renderer = snake_renderers[snake.id];
                 if( !snake_renderer ) {
                     snake_renderer = new SnakeRenderer(self);
@@ -850,6 +843,7 @@
                     snake_info.killed = false;
                     snake_info_layout = true;
                 }
+                snake_info.turns = board.turn;
                 snake_info.set_data(snake);
             }
 
@@ -859,6 +853,7 @@
                     var snake = board.killed[snake_i];
                     var snake_info = get_snake_info(snake.id);
                     if( !snake_info.killed ) {
+                        snake_info.turns = board.turn;
                         snake_info.killed = true;
                         snake_info_layout = true;
                         snake_info.set_data(snake);
@@ -875,6 +870,7 @@
 
                     var snake_info = snake_infos[id];
                     if( snake_info ) {
+                        snake_info.turns = board.turn;
                         snake_info.killed = true;
                         snake_info_layout = true;
                     }
