@@ -81,7 +81,7 @@ def evolve(
         # play n_rounds games of n_players randomly shuffled
         snakes = []
         for func in funcs:
-            func.err = 0;
+            func.err = 0
             func.games = []
             snakes.append(GenetiSnake(func))
             
@@ -120,7 +120,7 @@ def evolve(
                     game_json.write(', "turns": [\n')
                         
                     # play the game
-                    for board in game.run():
+                    for _board in game.run():
                         if game.turn_count > 0:
                             game_json.write(",\n")
                         game_json.write(json.dumps(game.to_dict()))

@@ -6,9 +6,9 @@ import genetisnake.app
 def app():
     return genetisnake.app.application
 
-def test_start(client):
+def do_test_start(client, root):
     data = {"width":20,"height":20,"game_id":"example-game-id"}
-    res = client.post('/start',
+    res = client.post(root + '/start',
                       data=json.dumps(data),
                       content_type='application/json')
     assert res.status_code == 200
@@ -19,7 +19,7 @@ def test_start(client):
     res = client.get(data["head_url"])
     assert res.status_code == 200
 
-def test_move(client):
+def do_test_move(client, root):
     data = {
         "you": "5b079dcd-0494-4afd-a08e-72c9a7c2d983",
         "width": 2,
@@ -64,8 +64,31 @@ def test_move(client):
             ]
         ]
     }
-    res = client.post('/move',
+    res = client.post(root + '/move',
                       data=json.dumps(data),
                       content_type='application/json')
     assert res.status_code == 200
     assert res.json["move"] in "up down left right".split()
+
+def test_start(client):
+    do_test_start(client, "")
+    
+def test_move(client):
+    do_test_start(client, "")
+
+def test_greedy_start(client):
+    do_test_start(client, "greedy")
+    
+def test_greedy_move(client):
+    do_test_start(client, "greedy")
+
+def test_trainee_start(client):
+    do_test_start(client, "trainee")
+    
+def test_trainee_move(client):
+    do_test_start(client, "trainee")
+
+def test_index(client):
+    res = client.get('/', follow_redirects=True)
+    assert res.status_code == 200
+    

@@ -1,15 +1,15 @@
 #! /usr/bin/env python
 import datetime
 import json
+
 import freezegun
-import os
 import py
 
 from genetisnake.training import evolve
 @freezegun.freeze_time("2012-01-01 00:01:02")
 def test_training(tmpdir):
     py.path.local(__file__).dirpath().join("data/winners.json").copy(tmpdir)
-    assert(tmpdir.join('winners.json').exists())
+    assert tmpdir.join('winners.json').exists()
     
     tmpdir.chdir()
 
