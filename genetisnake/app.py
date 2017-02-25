@@ -126,7 +126,7 @@ def move(snake=None):
 # cat training-20170129-133146/training.log | grep -A 1 '^winners generation' | sed -n -e 's/^turns=\([0-9]*\)/\1 \0/p' | sort -n | tail -20
 # winners generation=522
 # turns=8311
-TRAINEE_FUNCSTR = """(add (add (add (add var0 (min var2 var0)) (add (add (neg var1) (min var2 var0)) (add (add 2.50242369095 (min var2 var0)) (min (add (add (neg var1) (min var2 var0)) (min var2 var0)) var0)))) (min (add (add (add (neg var1) (min var2 var0)) (add (add (neg var1) (min var2 var0)) (add (add 2.50242369095 (min var2 var0)) (min (add (add (neg var1) (min var2 var0)) (min var2 var0)) var0)))) var0) var0)) (add (add (add (neg var1) (min var2 var0)) (add (add (neg var1) (min var2 var0)) (add (add 2.50242369095 (min var2 var0)) (min (add (add (neg var1) (min var2 var0)) (min var2 var0)) var0)))) var0))"""
+TRAINEE_FUNCSTR = """(div (add 0.920968518085 (add (add (neg (exp var0)) (add (neg -3.20738083295) (if_neg -1.21229462986 (max var1 -1.75894592428) (exp 3.84046896357)))) (sin var3))) (add (add (neg (exp var0)) -1.95853140233) (sin var3)))"""
 TRAINEE_SNAKE = GenetiSnake(solver.parsefunc(GenetiSnake.ARITY, TRAINEE_FUNCSTR))
 
 @application.route('/trainee/start', methods=['POST'])
@@ -136,7 +136,7 @@ def trainee_start():
         "color": 'green',
         "head_url": urljoin(request.url, '/images/trainee.png'),
         "name": 'NBK Trainee',
-        "taunt": 'Keen and green: ' + TRAINEE_FUNCSTR,
+        "taunt": 'Keen and green',
         })
 
 @application.route('/trainee/move', methods=['POST'])
@@ -157,7 +157,7 @@ def greedy_start():
         "color": 'yellow',
         "head_url": urljoin(request.url, '/images/greedy.png'),
         "name": 'NBK Greedy',
-        "taunt": 'hungry hungry snake: ' + GREEDY_FUNCSTR,
+        "taunt": 'hungry hungry snake',
         })
 
 @application.route('/greedy/move', methods=['POST'])
