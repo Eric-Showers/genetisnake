@@ -33,10 +33,10 @@ def start():
         "taunt": TAUNTS[0],
         })
 
-# from training-20170129-133146/training.log
-# winners generation=613
-# turns=7725
-FUNCSTR = """(add (add (add (min var2 var0) (exp -3.51617647341)) (add -3.26129321449 (add (add (neg var1) (min var2 var0)) (add (add 2.50242369095 (min var2 var0)) (min (add (add (neg var1) (min var2 var0)) (min var2 var0)) var0))))) (sin (exp -3.51617647341)))"""
+# cat training-20170129-133146/training.log | grep -A 1 '^winners generation' | sed -n -e 's/^turns=\([0-9]*\)/\1 \0/p' | sort -n | tail -20
+# winners generation=522
+# turns=8311
+FUNCSTR = """(add (add (add (add var0 (min var2 var0)) (add (add (neg var1) (min var2 var0)) (add (add 2.50242369095 (min var2 var0)) (min (add (add (neg var1) (min var2 var0)) (min var2 var0)) var0)))) (min (add (add (add (neg var1) (min var2 var0)) (add (add (neg var1) (min var2 var0)) (add (add 2.50242369095 (min var2 var0)) (min (add (add (neg var1) (min var2 var0)) (min var2 var0)) var0)))) var0) var0)) (add (add (add (neg var1) (min var2 var0)) (add (add (neg var1) (min var2 var0)) (add (add 2.50242369095 (min var2 var0)) (min (add (add (neg var1) (min var2 var0)) (min var2 var0)) var0)))) var0))"""
 solver = genetic.GeneticSolver()
 snake = GenetiSnake(solver.parsefunc(GenetiSnake.ARITY, FUNCSTR))
 
