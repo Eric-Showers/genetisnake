@@ -88,3 +88,4 @@ def test_smell_space():
            1,  INF, 3, 2,    1,    2,
            0,  INF, 2, 1,    0,  INF,
          INF,    4, 3, 2,    1,    2], 4)
+

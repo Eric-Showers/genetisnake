@@ -152,10 +152,14 @@ class Board(list):
         return smell, max_dist
 
     def __str__(self):
+        return self.fmt()
+        
+    def fmt(self, sep=""):
+        width = max(len(str(cell)) for cell in self)
         s = ""
         for i, val in enumerate(self):
             if i>0 and (i % self.width)==0:
                 s += "\n"
-            s += str(val)
+            s += '{0: >{1}}{2}'.format(val, width, sep)
         s += "\n"
         return s

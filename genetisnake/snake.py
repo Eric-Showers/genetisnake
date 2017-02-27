@@ -24,18 +24,23 @@ class GenetiSnake(object):
 
         max_move = board.moves[0]
         max_score = None
+
+        max_moves = float(board.width + board.height)
+        max_space = float(board.width * board.height)
+        
         for move_pos, move in board.neighbours(self_head):
             if not snake_board.CellTypeSnake.can_move(board[move_pos]):
                 continue
-            _space, space_self, space_enemy_min, space_enemy_max = board.smell_space(board_id, move_pos)
+            space_cone, _space_smell_cone = board.smell_space_cone(board_id, self_head, move.name)
+            space_all, _space_smell_all = board.smell_space_all(board_id, move_pos)
             # the number of arguments here is self.ARITY
             score = self.move_func(
-                self_health,
-                food_smell[move_pos],
-                enemy_smell[move_pos],
-                space_self,
-                space_enemy_min,
-                space_enemy_max,
+                float(self_health) / game.MAX_HEALTH,
+                float(food_smell[move_pos]) / max_moves,
+                float(enemy_smell[move_pos]) / max_moves,
+                float(space_cone) / max_space,
+                float(space_all) / max_space,
+                0,
                 )
 
             LOG.debug("snake.move board_id=%s pos=%s move=%s score=%s"
