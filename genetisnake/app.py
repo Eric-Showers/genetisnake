@@ -100,12 +100,13 @@ def move(snake=None):
     # convert the Battlesnake server structure into my Game
     width, height = (int(data[x]) for x in ("width", "height"))
     game = Game(width, height)
-    game.food = data["food"]
+    board = game.render()
+    game.food = [board.index(*xy) for xy in data["food"]]
     game.turn_count = int(data["turn"])
     self_index = None
     for idx, data_snake in enumerate(data["snakes"]):
         player = game.add_snake(data_snake, data_snake["id"])
-        player.body = data_snake["coords"]
+        player.body = [board.index(*xy) for xy in data_snake["coords"]]
         player.health = data_snake["health_points"]
         if player.name == data["you"]:
             self_index = idx

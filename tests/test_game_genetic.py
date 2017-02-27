@@ -1,10 +1,10 @@
 import logging
+import click
 
 from genetisnake.game import Game
 from genetisnake.snake import GenetiSnake
 
 LOG = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
 
 def mock_func(argidx):
     def arity_func(*args):
@@ -29,9 +29,9 @@ def test_game():
     game.add_snake(GenetiSnake(move_food))
     game.add_snake(GenetiSnake(move_food))
     for _board in game.run():
-        if game.turn > game.MAX_HEALTH:
+        if game.turn_count > game.MAX_HEALTH:
             break
-    assert game.turn > game.MAX_HEALTH
+    assert game.turn_count > 5
 
 def test_collision():
     game = Game(8, 8)
@@ -68,15 +68,25 @@ def test_game_greedy():
     game = Game(20, 20)
     game.add_snake(GenetiSnake(move_space))
     game.add_snake(GenetiSnake(move_food))
-    for board in game.run():
-        if game.turn > game.MAX_HEALTH:
+    for _board in game.run():
+        if game.turn_count > game.MAX_HEALTH:
             break
-    assert game.turn > game.MAX_HEALTH
-    
-if __name__ == '__main__':
+    assert game.turn_count > game.MAX_HEALTH
+
+@click.command()
+@click.option('--max_turns', '-m', default=0)
+def cli(max_turns):
     game = Game(20, 20)
     game.add_snake(GenetiSnake(move_space))
     game.add_snake(GenetiSnake(move_food))
-    for board in game.run():
-        print "game.run: turn=%s" % game.turn
-        print board
+    for _board in game.run():
+        print "game turn=%s" % game.turn_count
+        print game
+        
+        if max_turns and game.turn_count > max_turns:
+            break
+
+
+if __name__ == '__main__':
+    # pylint: disable=no-value-for-parameter,unexpected-keyword-arg
+    cli(auto_envvar_prefix='GENETISNAKE')

@@ -6,13 +6,16 @@ import logging
 import json
 import datetime
 import re
+import time
+from multiprocessing import Pool
+import fileinput
 
 import click
+
 import matplotlib
 # pylint: disable=wrong-import-position
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from pathos.multiprocessing import Pool
 
 import genetic
 from .snake import GenetiSnake
@@ -20,18 +23,42 @@ from .game import Game
 
 LOG = logging.getLogger(__name__)
 
+MAX_WINNERS = 20
 
 RE_GAME = re.compile(r'(?P<basename>gen\d+-game\d+-turns\d+)\.(json|log)(?:\..*)?')
-MAX_WINNERS = 20
+
+RE_LOG_WINNER = re.compile(r'^game generation=\d+ winner=(?P<winner>{.*})')
+def graph(training_log_path):
+    errs  = []
+    turns = []
+    for line in fileinput.input(training_log_path):
+        m = RE_LOG_WINNER.match(line)
+        if m:
+            winner = m.group('winner')
+            try: 
+                w = eval(winner) # pylint: disable=eval-used
+                errs.append(-w['err'])
+                turns.append(w['turns'])
+            except Exception as e:
+                LOG.warn("couldn't parse winner=%s: e=%s", winner, e)
+            continue
+
+    # update the progress graph
+    plt.plot(errs)
+    plt.plot(turns)
+    plt.ylabel('Turns / Err')
+    plt.xlabel('Generation')
+    plt.savefig(os.path.join(os.path.dirname(training_log_path), 'turns.svg'))
+    
 
 def evolve(
     root_dir=None,
     width=20,
     height=20,
     max_gens=None,
-    n_players=6, # players per game
-    n_games=3, # games per round
-    n_rounds=5, # number of games each player will play
+    n_players=None, # players per game
+    n_games=None, # games per round
+    n_rounds=None, # number of games each player will play
     ):
 
     if not root_dir:
@@ -53,6 +80,8 @@ def evolve(
     def training_log(msg):
         with open(training_log_path, "a") as f:
             f.write(msg)
+    training_log("started at %s\n" % datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    graph(training_log_path)
 
     # keep a json list of games
     game_list_path = os.path.join(root_dir, "games.json")
@@ -60,9 +89,6 @@ def evolve(
     if os.path.exists(game_list_path):
         with open(game_list_path) as f:
             games = json.load(f)
-
-    # graph max turns by generation
-    gen_turns = []
 
     # genetic solver and initial population
     solver = genetic.GeneticSolver()
@@ -75,19 +101,31 @@ def evolve(
         funcs += solver.population(GenetiSnake.ARITY, n-len(funcs))
 
     # I need to train to beat worthy adversaries
-    extra_snakes = []
-    for funcstr in (
-        "(neg var1)",
-        "(neg var1)",
-        ):
-        snake = GenetiSnake(genetic.FuncWithErr(solver.parsefunc(GenetiSnake.ARITY, funcstr)))
-        extra_snakes.append(snake)
+    def extra_snakes():
+        return [
+            GenetiSnake(genetic.FuncWithErr(solver.parsefunc(GenetiSnake.ARITY, funcstr)))
+            for funcstr in (
+                "(neg var1)",
+                )]
     
     solver.start(maxgens = max_gens)
     solver.gen_count = gen_start
     winners = []
-    
+
+    time0 = time.clock()
+    gen0 = solver.gen_count
+    pool = Pool()
+
     while not solver.converged():
+        # timing
+        dt = (time.clock() - time0) * 1000 
+        dgens =  float(solver.gen_count - gen0)
+        if dgens > 0 and dt > 10:
+            training_log("time check: %s generations in %s sec: %s sec/gen\n" % (dgens, dt, dt/dgens))
+
+            time0 = time.clock()
+            gen0 = solver.gen_count
+        
         gen_count = solver.gen_count+1
         training_log("start generation=%s rounds=%s snakes=%s\n" % (solver.gen_count, n_rounds, len(funcs)))
         
@@ -114,7 +152,7 @@ def evolve(
                 start += n_players
 
                 # add a couple of greedy snakes to the game for competition
-                snake_group += extra_snakes
+                snake_group += extra_snakes()
                     
                 game_count += 1
                 game_infos.append(dict(
@@ -127,11 +165,9 @@ def evolve(
                     snakes = snake_group,
                     ))
             
-        pool = Pool()
         for result in pool.map(play_game, game_infos):
             for snake_id, snake_result in result['snakes'].items():
                 snake = snakes[snake_id]
-                # TODO - merge results into snake
                 snake.games.append(snake_result['game'])
                 snake.turns += snake_result['turns']
                 snake.err += snake_result['err']
@@ -146,7 +182,7 @@ def evolve(
                 func_size = result['func_size'], # game.killed[-1].snake.move_func.func.child_count(),
                 func = result['func'], # func=str(game.killed[-1].snake.move_func.func),
                 ))
-
+        
         # Evaluate snakes: miximize turns and killed_order
         for snake in snakes.values():
             func = snake.move_func
@@ -168,13 +204,8 @@ def evolve(
                     winner_func = func
         training_log("finish generation=%s\n" % (solver.gen_count-1))
 
-        # update the progress graph
-        gen_turns.append(-parents[0].err)
-        plt.plot(gen_turns)
-        plt.ylabel('Max Turns')
-        plt.xlabel('Generations')
-        plt.savefig(os.path.join(root_dir, 'turns.svg'))
-
+        graph(training_log_path)
+            
         # keep only the games for the top 100 winners
         if winner_func:
             winner = dict(
@@ -332,8 +363,8 @@ def mkdir_p(path):
 @click.option('--root_dir', '-r', default='')
 @click.option('--width', '-w', default=20)
 @click.option('--height', '-h', default=20)
-@click.option('--players', '-p', default=6)
-@click.option('--games', '-g', default=3)
+@click.option('--players', '-p', default=7)
+@click.option('--games', '-g', default=5)
 @click.option('--rounds', '-n', default=5)
 @click.option('--max_gens', default=0)
 def cli(root_dir, width, height, players, games, rounds, max_gens):

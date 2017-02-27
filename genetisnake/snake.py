@@ -31,8 +31,7 @@ class GenetiSnake(object):
         for move_pos, move in board.neighbours(self_head):
             if not snake_board.CellTypeSnake.can_move(board[move_pos]):
                 continue
-            space_cone, _space_smell_cone = board.smell_space_cone(board_id, self_head, move.name)
-            space_all, _space_smell_all = board.smell_space_all(board_id, move_pos)
+            space_all, space_cone, _space_smell = board.smell_space(board_id, self_head, move.name)
             # the number of arguments here is self.ARITY
             score = self.move_func(
                 float(self_health) / game.MAX_HEALTH,

@@ -40,10 +40,9 @@ class CellType(object):
 
 class Board(list):
     """A 2-d array of values, stored in a list"""
+    neighbours_cache = {}
 
     def __init__(self, width, height, val=DEFAULT, moves=DEFAULT):
-        super(Board, self).__init__()
-
         self.width = width
         self.height = height
 
@@ -51,17 +50,17 @@ class Board(list):
             moves = ManhattanMoves
         self.moves = moves
 
+        self.neighbours_cache_key = (self.width, self.height, self.moves)
+
         if isdefault(val):
             val = None
-            
-        if not callable(val):
-            f = lambda x, y: val
-        else:
-            f = val # pylint: disable=redefined-variable-type
 
-        for y in range(height):
-            for x in range(width):
-                self.append(f(x, y))
+        if callable(val):
+            for y in range(height):
+                for x in range(width):
+                    self.append(val(x, y))
+        else:
+            super(Board, self).__init__([val]*(width * height))
 
     @classmethod
     def load(cls, *strs):
@@ -69,20 +68,6 @@ class Board(list):
         width = len(strs[0]) 
         height = len(strs)
         return cls(width, height, val=lambda x, y: strs[y][x])
-
-    def __getitem__(self, idx):
-        try:
-            idx = self.index(*idx)
-        except TypeError:
-            pass
-        return super(Board, self).__getitem__(idx)
-
-    def __setitem__(self, idx, val):
-        try:
-            idx = self.index(*idx)
-        except TypeError:
-            pass
-        return super(Board, self).__setitem__(idx, val)
 
     def put_list(self, pos_list, cell_type):
         for pos in pos_list:
@@ -104,12 +89,23 @@ class Board(list):
 
     def neighbours(self, pos):
         """return all (x, y, move) adjacent to index.  moves is an array of obects that define dx and dy"""
-        x, y = self.coords(pos)
-        for move in self.moves:
-            x1 = x + move.dx
-            y1 = y + move.dy
-            if x1 >= 0 and x1 < self.width and y1 >= 0 and y1 < self.height:
-                yield self.index(x1, y1), move
+
+        key = self.neighbours_cache_key
+        if key not in self.neighbours_cache:
+            neighs = []
+            neigh_pos = 0
+            for y in range(self.height):
+                for x in range(self.width):
+                    neigh_moves = []
+                    for move in self.moves:
+                        x1 = x + move.dx
+                        y1 = y + move.dy
+                        if x1 >= 0 and x1 < self.width and y1 >= 0 and y1 < self.height:
+                            neigh_moves.append((self.index(x1, y1), move))
+                    neighs.append(neigh_moves)
+                    neigh_pos += 1
+            self.neighbours_cache[key] = neighs
+        return self.neighbours_cache[key][pos]
 
     def copy(self, val=DEFAULT):
         return self.__class__(self.width, self.height, val, moves=self.moves)

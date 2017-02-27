@@ -74,19 +74,19 @@ def test_start(client):
     do_test_start(client, "")
     
 def test_move(client):
-    do_test_start(client, "")
+    do_test_move(client, "")
 
 def test_greedy_start(client):
     do_test_start(client, "greedy")
     
 def test_greedy_move(client):
-    do_test_start(client, "greedy")
+    do_test_move(client, "greedy")
 
 def test_trainee_start(client):
     do_test_start(client, "trainee")
     
 def test_trainee_move(client):
-    do_test_start(client, "trainee")
+    do_test_move(client, "trainee")
 
 def test_index(client):
     res = client.get('/', follow_redirects=True)

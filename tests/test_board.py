@@ -22,13 +22,11 @@ def test_neighbours():
         (2, 1, "N S W E NE NW SE SW", "N S W E"),
         ):
 
-        board = Board(6, 3)
-        board.moves = CompassMoves
+        board = Board(6, 3, moves=CompassMoves)
         neighs = board.neighbours(board.index(x, y))
         assert set(compass.split()) == set([move.name for _pos, move in neighs])
 
-        board = Board(6, 3)
-        board.moves = ManhattanMoves
+        board = Board(6, 3, moves=ManhattanMoves)
         neighs = board.neighbours(board.index(x, y))
         assert set(manhattan.split()) == set([move.name for _pos, move in neighs])
 
@@ -88,4 +86,3 @@ def test_smell_space():
            1,  INF, 3, 2,    1,    2,
            0,  INF, 2, 1,    0,  INF,
          INF,    4, 3, 2,    1,    2], 4)
-
