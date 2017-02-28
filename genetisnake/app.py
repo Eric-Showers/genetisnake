@@ -19,7 +19,7 @@ application = Flask(__name__)
 solver = genetic.GeneticSolver()
 
 # sed -n -e 's/^turns=\([0-9]*\) /\1 \0/p' training-20170124.out | sort -n | tail -100
-BEST_FUNCSTR = """(add (min (min (min (min var3 var0) var3) (if_neg (min (min (min var3 var0) var3) (if_neg (neg -3.64052156618) (if_neg -1.4740467549 var5 var4) (add 1.63309949431 var4))) (if_neg -1.4740467549 var5 var4) (add 1.63309949431 var4))) (min (min var3 var0) (min (min (min var3 var0) var3) (min (min (min var3 (min (min (min var3 var0) var3) (min (add (neg (neg (min var0 (min (neg (if_neg (add -3.16137902241 var2) (add (neg var1) (min (add (exp var4) (div var5 -3.5691568049)) var0)) (neg (neg (max (max 0.3026965553 var1) var1))))) (neg var1))))) (min (min (min (min var3 var0) var0) var3) (min (min var3 var0) var3))) var3))) var3) (min (min var3 var0) (min (add (neg (neg (min var0 (min (neg (if_neg (add -3.16137902241 var2) (add (neg var1) (min (add (exp var4) (div var5 -3.5691568049)) var0)) (neg (neg (max (max 0.3026965553 var1) var1))))) (neg var1))))) (min (min (min (min var3 var0) var0) var3) (min (min var3 var0) var3))) var3)))))) (min (min (min var3 var0) var3) (if_neg (min (min (min var3 var0) var3) (if_neg (neg -3.64052156618) (if_neg -1.4740467549 var5 var4) (add 1.63309949431 var4))) (if_neg -1.4740467549 var5 var4) (add 1.63309949431 var4))))"""
+BEST_FUNCSTR = "(if_neg (add var0 (neg 0.4)) (neg var1) (add var3 var4))"
 BEST_SNAKE = GenetiSnake(solver.parsefunc(GenetiSnake.ARITY, BEST_FUNCSTR))
 
 COLOR = "rgb(144,60,128)"
