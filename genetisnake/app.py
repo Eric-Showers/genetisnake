@@ -61,7 +61,7 @@ def start():
         "color": COLOR,
         "head_url": urljoin(request.url, '/images/snake_head.png'),
         "name": NAME,
-        "taunt": "I'm a snake, not a doctor",
+        "taunt": "Evolved for battle",
         })
 
 @application.route('/move', methods=['POST'])
@@ -117,7 +117,7 @@ def move(snake=None):
 
     return jsonify({
         "move": move_name,
-        "taunt": move_name,
+        "taunt": "%s@%s" % (move_name, game.turn_count),
         })
 
 
@@ -127,7 +127,7 @@ def move(snake=None):
 # cat training-20170129-133146/training.log | grep -A 1 '^winners generation' | sed -n -e 's/^turns=\([0-9]*\)/\1 \0/p' | sort -n | tail -20
 # winners generation=522
 # turns=8311
-TRAINEE_FUNCSTR = """(div (add 0.920968518085 (add (add (neg (exp var0)) (add (neg -3.20738083295) (if_neg -1.21229462986 (max var1 -1.75894592428) (exp 3.84046896357)))) (sin var3))) (add (add (neg (exp var0)) -1.95853140233) (sin var3)))"""
+TRAINEE_FUNCSTR = """(add (add (add -0.956064389076 (square var4)) (add (min (mul var5 var0) (square -2.76973052056)) (square (square (square (add (add (add (if_neg var1 1.79267619074 (add (square var3) (exp (cos2pi (min var2 -0.48064695733))))) (square var3)) 1.88411201432) (square (mul (exp (sin2pi -1.67536141169)) 3.55149852287)))))))) (add (add (add (if_neg var1 1.79267619074 (add (square var3) (exp (cos2pi (min var2 -0.48064695733))))) (square var3)) 1.88411201432) (add (add -0.956064389076 (square var4)) (add (min (mul var5 var0) (square -2.76973052056)) (square (square (square (add (add (add (if_neg var1 1.79267619074 (add (square var3) (exp (cos2pi (min var2 -0.48064695733))))) (square var3)) 1.88411201432) (square (mul (exp (sin2pi -1.67536141169)) 3.55149852287))))))))))"""
 TRAINEE_SNAKE = GenetiSnake(solver.parsefunc(GenetiSnake.ARITY, TRAINEE_FUNCSTR))
 
 @application.route('/trainee/start', methods=['POST'])
@@ -136,7 +136,7 @@ def trainee_start():
     return jsonify({
         "color": 'green',
         "head_url": urljoin(request.url, '/images/trainee.png'),
-        "name": 'NBK Trainee',
+        "name": 'GenetiRookie',
         "taunt": 'Keen and green',
         })
 
@@ -157,7 +157,7 @@ def greedy_start():
     return jsonify({
         "color": 'yellow',
         "head_url": urljoin(request.url, '/images/greedy.png'),
-        "name": 'NBK Greedy',
+        "name": 'GenetiGreedy',
         "taunt": 'hungry hungry snake',
         })
 
