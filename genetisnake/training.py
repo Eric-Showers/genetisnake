@@ -332,7 +332,7 @@ def play_game(game_info):
                 path=os.path.basename(game_json_path),
             ),
             turns = player.turns,
-            err =  killed_order * killed_order * player.turns,
+            err =  killed_order * killed_order * player.turns if player.health else 0
             )
             
     # return a map of snake_id => game stats
