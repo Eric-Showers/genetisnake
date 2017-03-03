@@ -88,6 +88,11 @@ def test_trainee_start(client):
 def test_trainee_move(client):
     do_test_move(client, "trainee")
 
+def test_rookie(client):
+    for i in range(5):
+        do_test_start(client, "rookie/%d" % i)
+        do_test_move(client, "rookie/%d" % i)
+
 def test_index(client):
     res = client.get('/', follow_redirects=True)
     assert res.status_code == 200

@@ -259,7 +259,10 @@ class SnakeBoard(Board):
         for snake_id in death_smell.values()[0].death_prob.keys():
             death_prob[snake_id] = {}
             for move_name in death_smell:
-                death_prob[snake_id][move_name] = death_smell[move_name].death_prob[snake_id][lookahead]
+                try:
+                    death_prob[snake_id][move_name] = death_smell[move_name].death_prob[snake_id][lookahead]
+                except IndexError:
+                    death_prob[snake_id][move_name] = death_smell[move_name].death_prob[snake_id][-1]
 
         # min probability of death for each snake
         death_min = {}

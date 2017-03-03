@@ -4,6 +4,7 @@ import time
 import os
 import sys
 from urlparse import urljoin
+import hashlib
 
 from flask import Flask, jsonify, request, send_from_directory, redirect
 import click
@@ -13,7 +14,7 @@ from genetisnake.game import Game
 from genetisnake.snake import GenetiSnake
 
 LOG = logging.getLogger(__name__)
-
+                  
 application = Flask(__name__)
 
 solver = genetic.GeneticSolver()
@@ -144,6 +145,64 @@ def trainee_start():
 @crossorigin
 def trainee_move():
     return move(snake=TRAINEE_SNAKE)
+
+#---------------------------------------------------------------------
+
+def string2color(s):
+    m = hashlib.md5()
+    m.update(s)
+    return '#' + m.hexdigest()[:6]
+
+class Rookie(object):
+    def __init__(self, name, funcstr, color=None, taunt=None):
+        self.name = name
+        self.funcstr = funcstr
+        self.color = color or string2color(funcstr)
+        self.taunt = taunt or self.funcstr[:32]
+        self.snake = GenetiSnake(solver.parsefunc(GenetiSnake.ARITY, self.funcstr))
+        
+ROOKIES = [
+    Rookie(
+        "GenetiRookie Alice",
+        funcstr="(add (min (neg var6) -0.0736864231426) (add (neg var6) (neg (min var1 (min var1 var1)))))"
+    ),
+    Rookie(
+        "GenetiRookie Bob",
+        funcstr="(min (neg (neg (add (neg var6) (neg (min var1 (min var1 var1)))))) var6)"
+    ),
+    Rookie(
+        "GenetiRookie Killer",
+        funcstr="(if_neg (add var0 (neg 0.4)) (neg var1) (add var5 (neg var6)))"
+    ),
+    Rookie(
+        "GenetiRookie Fraidycat",
+        funcstr="(if_neg (add var0 (neg 0.4)) (neg var1) (neg var6)))"
+    ),
+    Rookie(
+        "GenetiRookie Charlie",
+        funcstr="(if_neg (mul var5 (add (min (div (min (neg var5) -0.138054863337) var0) (add (if_neg (if_neg -1.5359287854 0.399048816061 var3) (exp var1) (exp var0)) (if_neg (neg var4) -3.80147515805 (exp var0)))) (if_neg -2.00562814874 var1 var0))) (if_neg (neg (mul (add var3 (if_neg -2.00562814874 var1 (if_neg var3 var1 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (sin2pi (add var3 var0)))) (if_neg (if_neg var3 (mul (add var3 (if_neg -2.00562814874 var1 (if_neg var3 var1 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (if_neg 0.386341079838 -2.6861013403 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933)))) (mul (add -3.76170731088 (if_neg -2.00562814874 var1 var0)) (if_neg 0.386341079838 -2.6861013403 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (mul (min 0.477135573117 (neg (neg (neg var2)))) (sin2pi (add var3 var0))) (mul (add -3.76170731088 (if_neg -2.00562814874 var1 var0)) (if_neg 0.386341079838 -2.6861013403 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (neg (mul (add var3 (if_neg -2.00562814874 var1 (if_neg var3 var1 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (sin2pi (add var3 var0))))) -1.48518221615)"
+    ),
+    ]
+
+
+@application.route('/rookie/<idx>/start', methods=['POST'])
+@crossorigin
+def rookie_start(idx):
+    rookie = ROOKIES[int(idx)]
+    return jsonify({
+        "color": rookie.color,
+        "head_url": urljoin(request.url, '/images/trainee.png'),
+        "name": rookie.name,
+        "taunt": rookie.taunt,
+        })
+
+@application.route('/rookie/<idx>/move', methods=['POST'])
+@crossorigin
+def rookie_move(idx):
+    rookie = ROOKIES[int(idx)]
+    return move(snake=rookie.snake)
+
+
 
 #--------------------------------------------------------------------
 # greedy snake: always go for food
