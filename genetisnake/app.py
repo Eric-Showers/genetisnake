@@ -214,5 +214,7 @@ def cli(host, port, debug, name, color, head):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.WARN)
+    
     # pylint: disable=no-value-for-parameter,unexpected-keyword-arg
     cli(auto_envvar_prefix='GENETISNAKE')

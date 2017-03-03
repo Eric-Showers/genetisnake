@@ -21,7 +21,11 @@ class SnakePlayer(object):
         self.turns = 0
 
     def move(self, game, board, index):
-        return self.snake.move(game, board, index)
+        try:
+            return self.snake.move(game, board, index)
+        except Exception as e:
+            LOG.error("Exception in move: %s", e)
+            return board.moves[0].name
 
     def __str__(self):
         if self.killed:

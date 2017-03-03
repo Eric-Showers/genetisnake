@@ -379,5 +379,7 @@ def cli(root_dir, width, height, players, games, rounds, max_gens):
         )
     
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.WARN)
+
     # pylint: disable=no-value-for-parameter,unexpected-keyword-arg
     cli(auto_envvar_prefix='TRAINING')

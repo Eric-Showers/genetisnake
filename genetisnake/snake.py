@@ -5,7 +5,7 @@ from . import snake_board
 LOG = logging.getLogger(__name__)
 
 class GenetiSnake(object):
-    ARITY = 6 # number of arguments my decision function takes
+    ARITY = 7 # number of arguments my decision function takes
     
     def __init__(self, move_func):
         self.move_func = move_func
@@ -27,19 +27,25 @@ class GenetiSnake(object):
 
         max_moves = float(board.width + board.height)
         max_space = float(board.width * board.height)
+
+        death_smell, death_prob, death_max = board.death_by_move(board_id)
+        if death_smell is None:
+            return board.moves[0].name
         
         for move_pos, move in board.neighbours(self_head):
             if not snake_board.CellTypeSnake.can_move(board[move_pos]):
                 continue
-            space_all, space_cone, _space_smell = board.smell_space(board_id, self_head, move.name)
+            death = death_smell[move.name]
+
             # the number of arguments here is self.ARITY
             score = self.move_func(
-                float(self_health) / game.MAX_HEALTH,
-                float(food_smell[move_pos]) / max_moves,
-                float(enemy_smell[move_pos]) / max_moves,
-                float(space_cone) / max_space,
-                float(space_all) / max_space,
-                0,
+                float(self_health) / game.MAX_HEALTH,     # var0 - my health
+                float(food_smell[move_pos]) / max_moves,  # var1 - min distance to food
+                float(enemy_smell[move_pos]) / max_moves, # var2 - min distance to an enemy
+                float(death.space_cone) / max_space,      # var3 - moves I could make in a cone
+                float(death.space_all) / max_space,       # var4 - moves I could make anywhere
+                death_max[move.name],                     # var5 - prob of killing an enemy
+                death_prob[board_id][move.name],          # var6 - prob of dying myself
                 )
 
             LOG.debug("snake.move board_id=%s pos=%s move=%s score=%s"

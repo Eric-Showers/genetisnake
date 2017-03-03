@@ -62,12 +62,24 @@ def test_collision_3():
 def move_space(*args):
     assert len(args) == GenetiSnake.ARITY
     LOG.debug("move_space: args=%s", args)
-    return -args[1] if args[0] < 0.5 else args[3] + args[4]
+    return -args[1] - args[6] * args[0] if args[0] < 0.5 else args[3] + args[4]
+
+def move_killer(*args):
+    assert len(args) == GenetiSnake.ARITY
+    LOG.debug("move_killer: args=%s", args)
+    return -args[1] - args[6] * args[0] if args[0] < 0.5 else args[5]
+
+def move_afraid(*args):
+    assert len(args) == GenetiSnake.ARITY
+    LOG.debug("move_afraid: args=%s", args)
+    return -args[1] - args[6] * args[0] if args[0] < 0.5 else -args[6]
 
 def test_game_greedy():
     game = Game(20, 20)
     game.add_snake(GenetiSnake(move_space))
     game.add_snake(GenetiSnake(move_food))
+    game.add_snake(GenetiSnake(move_killer))
+    game.add_snake(GenetiSnake(move_afraid))
     for _board in game.run():
         if game.turn_count > game.MAX_HEALTH:
             break
@@ -79,6 +91,8 @@ def cli(max_turns):
     game = Game(20, 20)
     game.add_snake(GenetiSnake(move_space))
     game.add_snake(GenetiSnake(move_food))
+    game.add_snake(GenetiSnake(move_killer))
+    game.add_snake(GenetiSnake(move_afraid))
     for _board in game.run():
         print "game turn=%s" % game.turn_count
         print game
