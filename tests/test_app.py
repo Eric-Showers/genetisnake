@@ -17,7 +17,7 @@ def do_test_start(client, root):
     assert data["head_url"].startswith('http')
 
     res = client.get(data["head_url"])
-    assert res.status_code == 200
+    assert res.status_code == 200, "couldn't get head_url=%s" % data["head_url"]
 
 def do_test_move(client, root):
     data = {

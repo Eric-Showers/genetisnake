@@ -60,7 +60,7 @@ def start():
 
     return jsonify({
         "color": COLOR,
-        "head_url": urljoin(request.url, '/images/snake_head.png'),
+        "head_url": urljoin(request.url, '/images/heads/chinese-1.png'),
         "name": NAME,
         "taunt": "Evolved for battle",
         })
@@ -136,7 +136,7 @@ TRAINEE_SNAKE = GenetiSnake(solver.parsefunc(GenetiSnake.ARITY, TRAINEE_FUNCSTR)
 def trainee_start():
     return jsonify({
         "color": 'green',
-        "head_url": urljoin(request.url, '/images/trainee.png'),
+        "head_url": urljoin(request.url, '/images/heads/kabuki-2.png'),
         "name": 'GenetiRookie',
         "taunt": 'Keen and green',
         })
@@ -154,32 +154,38 @@ def string2color(s):
     return '#' + m.hexdigest()[:6]
 
 class Rookie(object):
-    def __init__(self, name, funcstr, color=None, taunt=None):
+    def __init__(self, name, funcstr, head_url, color=None, taunt=None):
         self.name = name
         self.funcstr = funcstr
+        self.head_url = head_url
         self.color = color or string2color(funcstr)
         self.taunt = taunt or self.funcstr[:32]
         self.snake = GenetiSnake(solver.parsefunc(GenetiSnake.ARITY, self.funcstr))
         
 ROOKIES = [
     Rookie(
-        "GenetiRookie Alice",
-        funcstr="(add (min (neg var6) -0.0736864231426) (add (neg var6) (neg (min var1 (min var1 var1)))))"
-    ),
-    Rookie(
-        "GenetiRookie Bob",
-        funcstr="(min (neg (neg (add (neg var6) (neg (min var1 (min var1 var1)))))) var6)"
+        "GenetiRookie Fraidycat",
+        head_url='/images/heads/chinese-lion.png',
+        funcstr="(if_neg (add var0 (neg 0.4)) (neg var1) (add (add var3 var4) (neg var6))))"
     ),
     Rookie(
         "GenetiRookie Killer",
-        funcstr="(if_neg (add var0 (neg 0.4)) (neg var1) (add var5 (neg var6)))"
+        head_url='/images/heads/devil-1.png',
+        funcstr="(if_neg (add var0 (neg 0.5)) (add (neg var1) (mul var0 (add var3 var4))) (add (add var3 var4) (mul 2 (add var5 (neg var6)))))"
+        ),
+    Rookie(
+        "GenetiRookie Alice",
+        head_url='/images/heads/asian-demon-1.png',
+        funcstr="(add (min (neg var6) -0.0736864231426) (add (neg var6) (neg (min var1 (min var1 var1)))))",
     ),
     Rookie(
-        "GenetiRookie Fraidycat",
-        funcstr="(if_neg (add var0 (neg 0.4)) (neg var1) (neg var6)))"
+        "GenetiRookie Bob",
+        head_url='/images/heads/asian-dragon-1.png',
+        funcstr="(min (neg (neg (add (neg var6) (neg (min var1 (min var1 var1)))))) var6)",
     ),
     Rookie(
         "GenetiRookie Charlie",
+        head_url='/images/heads/demon-1.png',
         funcstr="(if_neg (mul var5 (add (min (div (min (neg var5) -0.138054863337) var0) (add (if_neg (if_neg -1.5359287854 0.399048816061 var3) (exp var1) (exp var0)) (if_neg (neg var4) -3.80147515805 (exp var0)))) (if_neg -2.00562814874 var1 var0))) (if_neg (neg (mul (add var3 (if_neg -2.00562814874 var1 (if_neg var3 var1 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (sin2pi (add var3 var0)))) (if_neg (if_neg var3 (mul (add var3 (if_neg -2.00562814874 var1 (if_neg var3 var1 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (if_neg 0.386341079838 -2.6861013403 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933)))) (mul (add -3.76170731088 (if_neg -2.00562814874 var1 var0)) (if_neg 0.386341079838 -2.6861013403 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (mul (min 0.477135573117 (neg (neg (neg var2)))) (sin2pi (add var3 var0))) (mul (add -3.76170731088 (if_neg -2.00562814874 var1 var0)) (if_neg 0.386341079838 -2.6861013403 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (neg (mul (add var3 (if_neg -2.00562814874 var1 (if_neg var3 var1 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (sin2pi (add var3 var0))))) -1.48518221615)"
     ),
     ]
@@ -191,7 +197,7 @@ def rookie_start(idx):
     rookie = ROOKIES[int(idx)]
     return jsonify({
         "color": rookie.color,
-        "head_url": urljoin(request.url, '/images/trainee.png'),
+        "head_url": urljoin(request.url, rookie.head_url),
         "name": rookie.name,
         "taunt": rookie.taunt,
         })
@@ -215,7 +221,7 @@ GREEDY_SNAKE = GenetiSnake(solver.parsefunc(GenetiSnake.ARITY, GREEDY_FUNCSTR))
 def greedy_start():
     return jsonify({
         "color": 'yellow',
-        "head_url": urljoin(request.url, '/images/greedy.png'),
+        "head_url": urljoin(request.url, '/images/heads/demon-1.png'),
         "name": 'GenetiGreedy',
         "taunt": 'hungry hungry snake',
         })
