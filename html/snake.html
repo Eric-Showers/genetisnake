@@ -31,9 +31,13 @@
      }
      
      body {
-         font-family: 'Montserrat', sans-serif
+         font-family: "Comic Sans MS", cursive, sans-serif;
          margin: 0px;
          overflow: hidden;
+         color: white;
+     }
+
+     a {
          color: white;
      }
 
@@ -50,6 +54,8 @@
      }
 
      #scoreboard-panel {
+         display: flex;
+         flex-direction: column;
          position: absolute;
          top: 10px;
          width: 400px;
@@ -69,7 +75,7 @@
 
      #snake-info-list {
          position: absolute;
-         top: 110px;
+         top: 160px;
          width: 400px;
          right: 10px;
          bottom: 10px;
@@ -151,7 +157,7 @@
          background-image: url(./images/audio.png);
          background-repeat: no-repeat;
          background-position: right top;
-         margin-right: 10px;
+         margin-right: 5px;
      }
 
      #audio-controls-popup:hover > #audio-controls {
@@ -177,7 +183,7 @@
 
      #audio-controls-popup-button {
          position: absolute;
-         right: 1em;
+         right: 0px;
          bottom: 0px;
          /* left: 50%;
             transform: translate3d(-50%, 0, 0) */
@@ -204,6 +210,15 @@
          float: left;
      }
 
+     .about-panel {
+         width: 330px;
+     }
+     
+     .intro-panel-popup:hover > #intro-panel {
+         left: 50%;
+         transform: translate3d(-50%, 0, 0);
+     }
+     
     </style>
   </head>
 
@@ -225,14 +240,21 @@
 
     <div id="snake-board">
     </div>
-
+    
     <div id="scoreboard-panel">
       <div id="scoreboard-game-info" class="scoreboard-game-info-wrapper">
         <div id="scoreboard-logo">
           <img src="./images/bs-logo-light.svg" class="scoreboard-logo"/>
         </div>
         
-	<div class="scoreboard-game-info">
+        <div class="about-panel">
+          <a href="https://en.wikipedia.org/wiki/Genetic_programming">Genetically</a>
+          trained snakes for the <a href="http://battlesnake.io">BattleSnake 2017</a> competition,
+          rendered with <a href="https://threejs.org/">three.js</a>.
+          --<a href="http://burton-krahn.com">Noel Burton-Krahn</a>, 2017.
+        </div>
+
+        <div class="scoreboard-game-info">
 	  <div>
             <span>{{game_name}}</span>
 	  </div>
@@ -240,9 +262,10 @@
             <span>Turn</span>
             <span>{{game_turn}}</span>
 	  </div>
-	</div>
-	
+        </div>
+        
       </div>
+      
     </div>
     
     <div id="snake-info-list"></div>
@@ -266,7 +289,22 @@
       </table>
     </div>
 
+    <!-- 
+    <div class="intro-panel">
+      <div class="intro-panel-top">
+        <img src="./images/bs-logo-light.svg" class="scoreboard-logo"/>
 
+        My entry in to the <a href="http://battlesnake.io">BattleSnake 2017</a> competition.  I used <a href="https://en.wikipedia.org/wiki/Genetic_programming">Genetic Programming</a> to train snake brains. Here's an example training game, rendered with <a href="https://threejs.org/">three.js</a>.
+      </div>
+      <div class="intro-panel-signature">
+        <a href="http://burton-krahn.com">Noel Burton-Krahn</a>, 2017
+      </div>
+    </div>
+    -->
+    
+    <div class="intro-panel-popup">
+    </div>
+    
     <script>
      var game_renderer;
 

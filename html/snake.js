@@ -39,7 +39,7 @@
     function set_effects_volume(val) {
         effects_volume = val;
     }
-    var effects_on = true;
+    var effects_on = false;
     function set_effects_on(val) {
         effects_on = val;
         $('#effects-on').prop('checked', effects_on);
