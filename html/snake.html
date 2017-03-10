@@ -69,10 +69,10 @@
 
      #snake-info-list {
          position: absolute;
-         top: 150px;
+         top: 110px;
          width: 400px;
          right: 10px;
-         bottom: 50px;
+         bottom: 10px;
      }
 
      .snake-info {
@@ -130,7 +130,7 @@
          position: absolute;
          overflow: hidden;
          color: white;
-         z-index: 10;
+         z-index: 5;
          line-height: 40px;
          top: 0px;
          bottom: 0px;
@@ -144,14 +144,18 @@
 
      #audio-controls-popup {
          position: absolute;
-         bottom: 10px;
+         top: 60px;
          right: 20px;
          width: 250px;
-         z-index: 10;
+         z-index: 20;
+         background-image: url(./images/audio.png);
+         background-repeat: no-repeat;
+         background-position: right top;
+         margin-right: 10px;
      }
 
      #audio-controls-popup:hover > #audio-controls {
-         top: 0px;
+         right: 0px;
      }
      
      #audio-controls-popup:hover > #audio-controls-popup-button {
@@ -160,14 +164,14 @@
 
      #audio-controls {
          position: relative;
-         top: 200px;
+         right: -400px;
          width: 100%;
          height: 100%;
          border: 1px solid black;
          border-radius: 10px;
          padding: 10px;
          box-shadow: 6px 6px 6px rgba(0, 0, 0, .5);
-         transition-property: top;
+         transition-property: right;
          transition-duration: 500ms;
      }
 
@@ -216,9 +220,7 @@
           <input type="range" id="music-volume-slider" class="audio-volume"/>
         </div>
       </div>
-      <div id="audio-controls-popup-button">
-        Audio
-      </div>
+      <div id="audio-controls-popup-button"></div>
     </div>
 
     <div id="snake-board">
