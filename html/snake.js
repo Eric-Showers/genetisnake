@@ -1,17 +1,17 @@
 ;(function(window) {
-    var FOOD_URL = "./images/food.png"
     var SNAKE_HEAD_URL = "./images/snake_head_nerdy.png";
     var SNAKE_HEAD_SCALE = 1.5;
-
+    var FOOD_URL = "./images/food.png"
     var AUDIO_URL = "./audio/"
     var AUDIO_PLAYLISTS_URL = AUDIO_URL + "playlists.json"
+
     function audio_url(url) {
         if( url[0] == '.' ) {
             url = AUDIO_URL + url;
         }
         return url;
     }
-    
+
     function audio_list(list, preload) {
         var audios = [];
         for(var i=0; i<list.length; i++) {
@@ -25,7 +25,7 @@
         }
         return audios;
     }
-    
+
     function choose(list) {
         var i = Math.floor(Math.random() * list.length);
         if( i >= list.length ) {
@@ -33,7 +33,7 @@
         }
         return list[i];
     }
-    
+
     var effects_playlist = {};
     var effects_volume = 0.5;
     function set_effects_volume(val) {
@@ -43,7 +43,6 @@
     function set_effects_on(val) {
         effects_on = val;
         $('#effects-on').prop('checked', effects_on);
-        $('#effects-on').button("refresh");
     }
     function play_effects(name) {
         if( effects_on && effects_playlist ) {
@@ -51,7 +50,6 @@
             var volume = effects_volume * (player.playlist.volume || 1);
             player.player.play();
             player.player.volume(volume);
-            //console.debug("play_effects name=" + name + " volume=" + player.player.volume() + " url=" + player.playlist.url);
         }
     }
 
@@ -105,11 +103,10 @@
                 }
                 music_player.player.play();
                 music_player.player.volume(volume);
-                //console.debug("play_music theme=" + theme + " volume=" + music_player.player.volume() + " name=" + music_player.playlist.name + " url=" + music_player.playlist.url);
             }
         }
     }
-    
+
     function SnakeInfoDiv(div_id, data) {
         // render snake info into a div using Vue
         var self = this;
@@ -203,8 +200,11 @@
 
     function interpolateWithArcs(pts) {
         /*
-           return a function(t) that interpolates pts with straight lines and arcs, 0<=t<=1
+          return a function(t) that interpolates pts with straight lines and arcs, 0<=t<=1
         */
+
+        var EPSILON = 1e-6; // Number.EPSILON is too small for roundoff errors
+        
         function interp_arc(pt0, pt1, pt2) {
             // return a function(t) that interpolates from the
             // midpoints m0 and m1 between pt0,pt1 and p1,pt2 with a
@@ -212,7 +212,7 @@
             var c =  (new THREE.Vector3()).addVectors(pt0, pt2).multiplyScalar(0.5);
             var m0 = (new THREE.Vector3()).addVectors(pt0, pt1).multiplyScalar(0.5);
             var m1 = (new THREE.Vector3()).addVectors(pt1, pt2).multiplyScalar(0.5);
-            if( c.distanceTo(pt1) < Number.EPSILON ) {
+            if( c.distanceTo(pt1) < EPSILON ) {
                 // m0, m1, and c are colinear, interpolate a line
                 var v = new THREE.Vector3();
                 return function(t) {
@@ -226,12 +226,14 @@
                 var angle = m0.angleTo(m1);
                 var cross = (new THREE.Vector3()).crossVectors(m0, m1).normalize();
                 // correct angleTo's sign so applyAxisAngle(cross, angle) == m1
-                if( m0.clone().applyAxisAngle(cross, angle).distanceTo(m1) > Number.EPSILON ) {
+                var err;
+                err = (new THREE.Vector3()).copy(m0).applyAxisAngle(cross, angle).distanceTo(m1);
+                if( Math.abs(err) > EPSILON ) {
                     angle *= -1;
                 }
                 // assertion: m0.applyAxisAngle(cross, angle) == m1
-                var err = (new THREE.Vector3()).copy(m0).applyAxisAngle(cross, angle).distanceTo(m1);
-                if( err > Number.EPSILON ) {
+                err = (new THREE.Vector3()).copy(m0).applyAxisAngle(cross, angle).distanceTo(m1);
+                if( Math.abs(err) > EPSILON ) {
                     console.error("ERROR: m0=" + m0 + " can't rotate to m1=" + m1 + " angle=" + angle + " error=" + err);
                 }
 
@@ -300,12 +302,40 @@
         };
     }
 
-    var imgTexture = memoize(function(url) {
-        THREE.ImageUtils.crossOrigin = '';
-        var tex = THREE.ImageUtils.loadTexture(url);
+    var texture_cache = {};
+    var load_texture = function(url, callback) {
+        var tex = texture_cache[url];
+        if( tex ) {
+            if( callback ) {
+                callback(tex);
+            }
+            return tex;
+        }
+        
+        var loader = new THREE.TextureLoader();
+        loader.crossOrigin = '';
+        var tex = loader.load(url
+                              ,function(tex) {
+                                  tex.minFilter = THREE.LinearFilter;
+                                  texture_cache[url] = tex;
+                                  if( callback ) {
+                                      callback(tex);
+                                  }
+                              }
+                              ,function(xhr) {}
+                              ,function(xhr) {
+                                  if( url != SNAKE_HEAD_URL ) {
+                                      tex = loader.load(SNAKE_HEAD_URL);
+                                      tex.minFilter = THREE.LinearFilter;
+                                      texture_cache[url] = tex;
+                                      if( callback ) {
+                                          callback(tex);
+                                      }
+                                  }
+                              });
         tex.minFilter = THREE.LinearFilter;
         return tex;
-    });
+    };
 
     var radialCanvas = memoize(function(width, height, stops) {
         var canvas = document.createElement('canvas');
@@ -368,8 +398,8 @@
 
         self.render = function(snake) {
             //console.time("SnakeRenderer.render");
-            var color = snake.color || stringToColor(snake.name);
-            var body = snake.coords || snake.body;
+            var color = snake.color;
+            var body = snake.body;
 
             // body
             if( !body_material ) {
@@ -416,12 +446,12 @@
             }
 
             // head
-            var img = snake.img || SNAKE_HEAD_URL;
+            var img = snake.img;
             if( !head_material ) {
                 // TODO - reload material if head changes
                 head_material = new THREE.SpriteMaterial({
-                    map: imgTexture(img)
                 });
+                load_texture(img, function(tex) {head_material.map = tex});
             }
             if( !head_particle ) {
                 head_particle = new THREE.Sprite(head_material);
@@ -465,7 +495,7 @@
                              z: p0.z + (Math.random()*mag/2)}, dur)
                         .start();
                     new TWEEN.Tween(particle.scale)
-                        .delay(delay)
+                        .delay(dur*i/body_particles.length)
                         .to({x: 0.01, y: 0.01}, dur)
                         .onComplete((function(particle) {
                             return function() {
@@ -535,9 +565,8 @@
     function FoodRenderer(board_renderer, food_pt) {
         var self = this;
 
-        var material = new THREE.SpriteMaterial({
-            map: imgTexture(FOOD_URL)
-        });
+        var material = new THREE.SpriteMaterial();
+        load_texture(FOOD_URL, function(tex) { material.map = tex; });
         var sprite = new THREE.Sprite(material);
         board_renderer.board_node.add(sprite);
         sprite.position.copy(food_pt);
@@ -633,6 +662,30 @@
         var grid_mesh = null;
         var board_info_vue = null;
 
+        self.fixup_snake = function(snake) {
+            if( !('board_id' in snake) ) {
+                snake.board_id = snake.id;
+            }
+            if( !('img' in snake) ) {
+                snake.img = snake.head_url || SNAKE_HEAD_URL;
+            }
+            if( !('color' in snake) || !snake.color ) {
+                snake.color = stringToColor(snake.board_id);
+            }
+            if( !('body' in snake) ) {
+                snake.body = snake.coords;
+            }
+            if( snake.cause_of_death ) {
+                snake.taunt = snake.cause_of_death;
+            }
+        }
+        
+        self.fixup_snakes = function(snakes) {
+            for(var i=0; i<snakes.length; i++) {
+                self.fixup_snake(snakes[i]);
+            }
+        }
+        
         // the center point of a board cell
         self.board_point = function(cell_x, cell_y, pt_z) {
             var pt_x = (cell_x + 0.5) * self.board_size / self.board.width - self.board_size / 2;
@@ -719,9 +772,17 @@
         self.render = function(board) {
             //console.time("SnakeBoardRenderer.render");
 
+            // fixup board
+            if( !('killed' in board) ) {
+                board.killed = board.dead_snakes;
+            }
+            self.fixup_snakes(board.snakes);
+            self.fixup_snakes(board.killed);
+
             self.board = board;
             self.cell_width = self.board_size / board.width / 2 * .9;
 
+            // audio
             var music_theme;
             if( board.turn == 0 ) {
                 music_theme = "prologue";
@@ -743,6 +804,8 @@
                     }
                 });
             }
+
+            // board turns
             board_info_vue.$data.game_turn = board.turn;
             board_info_vue.$data.game_name = board.game_id;
 
@@ -829,21 +892,21 @@
             // render living snakes
             for(var snake_i=0; snake_i<board.snakes.length; snake_i++) {
                 var snake = board.snakes[snake_i];
-                var snake_renderer = snake_renderers[snake.id];
+
+                var snake_renderer = snake_renderers[snake.board_id];
                 if( !snake_renderer ) {
                     snake_renderer = new SnakeRenderer(self);
-                    snake_renderers[snake.id] = snake_renderer;
+                    snake_renderers[snake.board_id] = snake_renderer;
                     snake_info_layout = true;
                 }
                 snake_renderer.render(snake);
                 snake_renderer.killed = false;
 
-                var snake_info = get_snake_info(snake.id, snake_i);
+                var snake_info = get_snake_info(snake.board_id, snake_i);
                 if( snake_info.killed ) {
                     snake_info.killed = false;
                     snake_info_layout = true;
                 }
-                snake_info.turns = board.turn;
                 snake_info.set_data(snake);
             }
 
@@ -851,9 +914,8 @@
             if( board.killed ) {
                 for(var snake_i=0; snake_i<board.killed.length; snake_i++) {
                     var snake = board.killed[snake_i];
-                    var snake_info = get_snake_info(snake.id);
+                    var snake_info = get_snake_info(snake.board_id);
                     if( !snake_info.killed ) {
-                        snake_info.turns = board.turn;
                         snake_info.killed = true;
                         snake_info_layout = true;
                         snake_info.set_data(snake);
@@ -870,7 +932,6 @@
 
                     var snake_info = snake_infos[id];
                     if( snake_info ) {
-                        snake_info.turns = board.turn;
                         snake_info.killed = true;
                         snake_info_layout = true;
                     }
@@ -985,8 +1046,6 @@
         }
 
         function init() {
-            // make divs: snake-board and snake-info
-            
             // load audio playlists
             $.getJSON(AUDIO_PLAYLISTS_URL)
                 .done(function(data) {
@@ -1002,32 +1061,18 @@
                 });
 
             // audio controls
-            $("#effects-on").button({
-                icons: {
-                    primary: 'ui-icon-unlocked'
-                }               
-            }).change(function() { set_effects_on($(this).is(':checked')) });
+            $("#effects-on").change(function() { set_effects_on($(this).is(':checked')) });
             $('#effects-on').prop('checked', effects_on);
-            $('#effects-on').button("refresh");
             
-            $("#effects-volume-slider").slider({
-                min: 0,
-                max: 100,
-                value: effects_volume*100,
-                slide: function(event, ui) { set_effects_volume(ui.value/100); }
-            });
+            $("#effects-volume-slider")
+                .val(effects_volume*100)
+                .on('input', function() { set_effects_volume($(this).val()/100); });
             $('#music-on').prop('checked', music_on);
-            $("#music-on").button({
-                icon: { icon: "ui-icon-gear" }
-            }).change(function(event, ui) { set_music_on($(this).is(':checked')) });
-            $("#music-volume-slider").slider({
-                min: 0,
-                max: 100,
-                value: music_volume*100,
-                slide: function(event, ui) { set_music_volume(ui.value/100); }
-            });
+            $("#music-on").change(function() { set_music_on($(this).prop('checked')) })
+            $("#music-volume-slider")
+                .val(music_volume*100)
+                .on('input', function() { set_music_volume($(this).val()/100); });
             $('.ui-slider-handle').show();
-                      
 
             clock = new THREE.Clock();
             scene = new THREE.Scene();

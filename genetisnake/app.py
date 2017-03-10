@@ -12,12 +12,14 @@ import click
 import genetic
 from genetisnake.game import Game
 from genetisnake.snake import GenetiSnake
+from genetisnake.taunts import taunt
 
 LOG = logging.getLogger(__name__)
                   
 application = Flask(__name__)
 
 solver = genetic.GeneticSolver()
+
 
 # sed -n -e 's/^turns=\([0-9]*\) /\1 \0/p' training-20170124.out | sort -n | tail -100
 BEST_FUNCSTR = "(if_neg (add var0 (neg 0.4)) (neg var1) (add var3 var4))"
@@ -26,7 +28,6 @@ BEST_SNAKE = GenetiSnake(solver.parsefunc(GenetiSnake.ARITY, BEST_FUNCSTR))
 COLOR = "rgb(144,60,128)"
 HEAD = "/images/snake_head_nerdy.png"
 NAME = "Genetisnake NBK"
-TAUNTS = ["taunt"]
 MOVES = "up right down left".split()
 
 def debug_timing(f):
@@ -62,7 +63,7 @@ def start():
         "color": COLOR,
         "head_url": urljoin(request.url, '/images/heads/chinese-1.png'),
         "name": NAME,
-        "taunt": "Evolved for battle",
+        "taunt": taunt(),
         })
 
 @application.route('/move', methods=['POST'])
@@ -118,7 +119,7 @@ def move(snake=None):
 
     return jsonify({
         "move": move_name,
-        "taunt": "%s@%s" % (move_name, game.turn_count),
+        "taunt": taunt(),
         })
 
 
@@ -138,7 +139,7 @@ def trainee_start():
         "color": 'green',
         "head_url": urljoin(request.url, '/images/heads/kabuki-2.png'),
         "name": 'GenetiRookie',
-        "taunt": 'Keen and green',
+        "taunt": taunt(),
         })
 
 @application.route('/trainee/move', methods=['POST'])
@@ -154,12 +155,12 @@ def string2color(s):
     return '#' + m.hexdigest()[:6]
 
 class Rookie(object):
-    def __init__(self, name, funcstr, head_url, color=None, taunt=None):
+    def __init__(self, name, funcstr, head_url, color=None, taunt_str=None):
         self.name = name
         self.funcstr = funcstr
         self.head_url = head_url
         self.color = color or string2color(funcstr)
-        self.taunt = taunt or self.funcstr[:32]
+        self.taunt = taunt_str or taunt()
         self.snake = GenetiSnake(solver.parsefunc(GenetiSnake.ARITY, self.funcstr))
         
 ROOKIES = [
@@ -176,17 +177,17 @@ ROOKIES = [
     Rookie(
         "GenetiRookie Alice",
         head_url='/images/heads/asian-demon-1.png',
-        funcstr="(add (min (neg var6) -0.0736864231426) (add (neg var6) (neg (min var1 (min var1 var1)))))",
+        funcstr="(add (min (add (add (add (add (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))) (add (neg var6) (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))))) (add var6 (add (neg var6) (add (neg (add (neg var6) 0.0471590670667)) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))))) (add (neg var6) (add (neg (add (neg var6) 0.0471590670667)) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1)))))) (add (add (add (add (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))) (add (neg var6) (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))))) (add var6 (add (neg var6) (add (neg (add (neg var6) 0.0471590670667)) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))))) (add (neg var6) (add (neg (add (neg var6) 0.0471590670667)) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1)))))) (if_neg (neg var0) -1.82986878067 (min 1.55206835496 var6)))) 10.0371690782) (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))))",
     ),
     Rookie(
         "GenetiRookie Bob",
         head_url='/images/heads/asian-dragon-1.png',
-        funcstr="(min (neg (neg (add (neg var6) (neg (min var1 (min var1 var1)))))) var6)",
+        funcstr="(add (add (add (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))) (add (neg var6) (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))))) (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1)))))) -0.95403366909)",
     ),
     Rookie(
         "GenetiRookie Charlie",
         head_url='/images/heads/demon-1.png',
-        funcstr="(if_neg (mul var5 (add (min (div (min (neg var5) -0.138054863337) var0) (add (if_neg (if_neg -1.5359287854 0.399048816061 var3) (exp var1) (exp var0)) (if_neg (neg var4) -3.80147515805 (exp var0)))) (if_neg -2.00562814874 var1 var0))) (if_neg (neg (mul (add var3 (if_neg -2.00562814874 var1 (if_neg var3 var1 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (sin2pi (add var3 var0)))) (if_neg (if_neg var3 (mul (add var3 (if_neg -2.00562814874 var1 (if_neg var3 var1 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (if_neg 0.386341079838 -2.6861013403 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933)))) (mul (add -3.76170731088 (if_neg -2.00562814874 var1 var0)) (if_neg 0.386341079838 -2.6861013403 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (mul (min 0.477135573117 (neg (neg (neg var2)))) (sin2pi (add var3 var0))) (mul (add -3.76170731088 (if_neg -2.00562814874 var1 var0)) (if_neg 0.386341079838 -2.6861013403 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (neg (mul (add var3 (if_neg -2.00562814874 var1 (if_neg var3 var1 (min 2.42936943769 (if_neg 3.09516349582 var0 -1.97034708933))))) (sin2pi (add var3 var0))))) -1.48518221615)"
+        funcstr="(add (add (add (add (add (add (add (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))) (add (neg var6) (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))))) (add (add (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1)))) (add (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))) (min (min (if_neg var2 var2 2.11092055883) (exp (min var1 -1.40286722039))) (exp (neg (if_neg var6 var5 var1))))))) (add (add (neg var6) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1))))) (min (if_neg (if_neg -1.31031465935 var1 -2.5703054304) -0.679042961104 -1.12100239519) (exp (neg (if_neg var6 var5 var1)))))) (add (neg (min (min (if_neg var2 var2 2.11092055883) (exp (min var1 -1.40286722039))) (exp (neg (if_neg var6 var5 var1))))) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1)))))) (add (neg (min (min (if_neg var2 var2 2.11092055883) (exp (min var1 -1.40286722039))) (exp (neg (if_neg var6 var5 var1))))) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1)))))) (add (neg (min (min (if_neg var2 var2 2.11092055883) (exp (min var1 -1.40286722039))) (exp (neg (if_neg var6 var5 var1))))) (add (neg var6) (neg (min (neg (add (neg var6) (neg (min var1 (min var1 var1))))) (min var1 var1)))))) (min (add (add (neg var6) (min (min (if_neg var2 var2 2.11092055883) (exp (min var1 -1.40286722039))) (exp (neg (if_neg var6 var5 var1))))) (min (if_neg (if_neg -1.31031465935 var1 -2.5703054304) -0.679042961104 -1.12100239519) (exp (neg (if_neg var6 var5 var1))))) var3))"
     ),
     ]
 
@@ -199,7 +200,7 @@ def rookie_start(idx):
         "color": rookie.color,
         "head_url": urljoin(request.url, rookie.head_url),
         "name": rookie.name,
-        "taunt": rookie.taunt,
+        "taunt": taunt(),
         })
 
 @application.route('/rookie/<idx>/move', methods=['POST'])
@@ -223,7 +224,7 @@ def greedy_start():
         "color": 'yellow',
         "head_url": urljoin(request.url, '/images/heads/demon-1.png'),
         "name": 'GenetiGreedy',
-        "taunt": 'hungry hungry snake',
+        "taunt": taunt(),
         })
 
 @application.route('/greedy/move', methods=['POST'])

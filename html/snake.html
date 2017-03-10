@@ -22,6 +22,14 @@
          fill: #797784;
      }
 
+     .scoreboard-logo {
+         margin-bottom: 1em;
+     }
+
+     .nopadding {
+         padding: 0px;
+     }
+     
      body {
          font-family: 'Montserrat', sans-serif
          margin: 0px;
@@ -64,13 +72,13 @@
          top: 150px;
          width: 400px;
          right: 10px;
-         bottom: 10px;
+         bottom: 50px;
      }
 
      .snake-info {
          position: absolute;
          width: 400px;
-         top: 150px;
+         top: 200px;
          right: 10px;
      }
 
@@ -165,9 +173,10 @@
 
      #audio-controls-popup-button {
          position: absolute;
-         left: 50%;
+         right: 1em;
          bottom: 0px;
-         transform: translate3d(-50%, 0, 0)
+         /* left: 50%;
+            transform: translate3d(-50%, 0, 0) */
          transition-property: opacity;
          transition-duration: 500ms;
      }
@@ -191,56 +200,36 @@
          float: left;
      }
 
-     .ui-slider-handle {
-         visibility: visible;
-         border: 1px solid #c5c5c5;
-         background: #f6f6f6;
-         border-radius: 50%;
-     }
-
-     .ui-state-active {
-         border: none;
-         background: none;
-     }
-
-     .ui-button.ui-state-active:hover {
-         border: inherit;
-         background: inherit;
-     }
-     
-
     </style>
   </head>
 
   <body>
     
-    <div id="snake-board">
-
-      <div id="audio-controls-popup">
-        <div id="audio-controls">
-          <div class="audio-horiz">
-            <input id="effects-on" type="checkbox"><label for="effects-on" class="audio-on">Effects</label>
-            <div id="effects-volume-slider" class="audio-volume"></div>
-          </div>
-          <div class="audio-horiz">
-            <input id="music-on" type="checkbox"><label for="music-on" class="audio-on">Music</label>
-            <div id="music-volume-slider" class="audio-volume"></div>
-          </div>
+    <div id="audio-controls-popup">
+      <div id="audio-controls">
+        <div class="audio-horiz">
+          <input id="effects-on" type="checkbox"><label for="effects-on" class="audio-on">Effects</label>
+          <input type="range" id="effects-volume-slider" class="audio-volume"/>
         </div>
-        <div id="audio-controls-popup-button">
-          Audio
+        <div class="audio-horiz">
+          <input id="music-on" type="checkbox"><label for="music-on" class="audio-on">Music</label>
+          <input type="range" id="music-volume-slider" class="audio-volume"/>
         </div>
       </div>
-      
+      <div id="audio-controls-popup-button">
+        Audio
+      </div>
+    </div>
+
+    <div id="snake-board">
     </div>
 
     <div id="scoreboard-panel">
-
-      <div id="scoreboard-logo">
-	<img src="./images/bs-logo-light.svg"/>
-      </div>
-
       <div id="scoreboard-game-info" class="scoreboard-game-info-wrapper">
+        <div id="scoreboard-logo">
+          <img src="./images/bs-logo-light.svg" class="scoreboard-logo"/>
+        </div>
+        
 	<div class="scoreboard-game-info">
 	  <div>
             <span>{{game_name}}</span>
@@ -250,24 +239,24 @@
             <span>{{game_turn}}</span>
 	  </div>
 	</div>
+	
       </div>
-
     </div>
-
+    
     <div id="snake-info-list"></div>
 
     <!-- snake-info-block-template -->
     <div class="snake-info" id="snake-info-template" v-bind:style="{'border-color': color}">
       <table width="100%" cellspacing="0" cellpadding="0">
         <tr>
-          <td class="noborder" valign="top" width="64px"><img class="snake-info-img" v-bind:src="img"/></td>
-          <td class="noborder" valign="top" width="100%">
+          <td class="noborder nopadding" valign="top" width="64px"><img class="snake-info-img" v-bind:src="img"/></td>
+          <td class="noborder nopadding" valign="top" width="100%">
             <div class="snake-info-right">
               <div class="snake-info-name">{{name}}</div>
               <div class="snake-info-health-border">
                 <div class="snake-info-health-background"  v-bind:style="{'background': color}"></div>
                 <div class="snake-info-health" v-bind:style="{width: health + '%', 'background': color}"></div>
-	        <div class="snake-info-taunt">{{taunt}}</div>
+	        <div class="snake-info-taunt">{{killed || taunt}}</div>
               </div>
             </div>
           </td>
@@ -286,8 +275,20 @@
          var game_turn_data;
          var game_turn_index;
          var snake_defaults;
-         var GAME_TURN_FPS = 20;
+         var GAME_TURN_FPS = 10;
 
+         function set_snake_defaults(snakes) {
+             for(var snake_i=0; snakes && snake_i<snakes.length; snake_i++) {
+                 var snake = snakes[snake_i];
+                 var snake_default = snake_defaults[snake.board_id];
+                 for(var key in snake_default) {
+                     if( !(key in snake) ) {
+                         snake[key] = snake_default[key];
+                     }
+                 }
+             }
+         }
+         
          function render_turn() {
              if( !game_turn_data ) {
                  return;
@@ -296,16 +297,9 @@
              game_turn_index++;
              game_turn_index %= game_turn_data.length;
              var board = game_turn_data[game_turn_index];
-             for(var snake_i=0; snake_i<board.snakes.length; snake_i++) {
-                 var snake = board.snakes[snake_i];
-                 var snake_default = snake_defaults[snake.board_id];
-                 for(var key in snake_default) {
-                     if( !(key in snake) ) {
-                         snake[key] = snake_default[key];
-                     }
-                 }
-             }
-
+             set_snake_defaults(board.snakes);
+             set_snake_defaults(board.killed);
+                 
              game_renderer.render(board);
 
              setTimeout(render_turn, 1000 / GAME_TURN_FPS);
@@ -342,6 +336,9 @@
                      }
                      if( !("color" in snake) ) {
                          snake.color = stringToColor(snake.taunt);
+                     }
+                     if( !("head_url" in snake) ) {
+                         snake.head_url = "./images/heads/snake_head_" + i + ".png";
                      }
 
                      snake_defaults[snake.board_id] = snake;
